@@ -23,8 +23,8 @@ enum InputAction {
     MoveLeft,
     New,
     MoveEnd,
-    // MoveRightWord,
-    // MoveLeftWord,
+    MoveRightJump,
+    MoveLeftJump,
     // RmRightWord,
     // RmLeftWord,
     MoveHome,
@@ -145,6 +145,13 @@ fn kbd_event(key_event: KeyEvent) -> Command {
             Command::InputAction(InputAction::MoveHome)
         }
 
+        KeyCode::Right if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
+            Command::InputAction(InputAction::MoveRightJump)
+        }
+        KeyCode::Left if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
+            Command::InputAction(InputAction::MoveLeftJump)
+        }
+
         KeyCode::Char(c) => match c {
             'c' if key_event.modifiers == KeyModifiers::from_bits(0x2).unwrap() => Command::Exit(0),
             // 'h' if key_event.modifiers == KeyModifiers::from_bits(0x2).unwrap() => {
@@ -251,6 +258,22 @@ impl Input {
                 }
             }
 
+            InputAction::MoveRightJump => {
+                self.to_right_jump();
+                _ = sol.write(&[13]);
+                for _idx in 0..self.cursor {
+                    _ = sol.write(b"\x1b[C");
+                }
+            }
+
+            InputAction::MoveLeftJump => {
+                self.to_left_jump();
+                _ = sol.write(&[13]);
+                for _idx in 0..self.cursor {
+                    _ = sol.write(b"\x1b[C");
+                }
+            }
+
             InputAction::HistoryPrev => {
                 if h.prev(&mut self.values) {
                     _ = sol.write(b"\x1b[2K");
@@ -352,6 +375,57 @@ impl Input {
         self.cursor = 0;
 
         true
+    }
+
+    fn clear_line(&mut self) {}
+
+    const STOPPERS: [char; 11] = ['/', ' ', '-', '_', ',', '"', '\'', ';', ':', '.', ','];
+
+    fn to_right_jump(&mut self) {
+        if self.cursor == self.values.len() {
+            return;
+        }
+
+        match self.values[if self.cursor + 1 < self.values.len() {
+            self.cursor + 1
+        } else {
+            self.cursor
+        }] == ' '
+        {
+            true => {
+                while self.cursor + 1 < self.values.len() && self.values[self.cursor + 1] == ' ' {
+                    self.cursor += 1;
+                }
+            }
+            false => {
+                while self.cursor + 1 < self.values.len()
+                    && !Self::STOPPERS.contains(&self.values[self.cursor + 1])
+                {
+                    self.cursor += 1;
+                }
+                self.cursor += 1;
+            }
+        }
+    }
+
+    fn to_left_jump(&mut self) {
+        if self.cursor == 0 {
+            return;
+        }
+
+        match self.values[self.cursor - 1] == ' ' {
+            true => {
+                while self.cursor > 0 && self.values[self.cursor - 1] == ' ' {
+                    self.cursor -= 1;
+                }
+            }
+            false => {
+                while self.cursor > 1 && !Self::STOPPERS.contains(&self.values[self.cursor - 1]) {
+                    self.cursor -= 1;
+                }
+                self.cursor -= 1;
+            }
+        }
     }
 
     fn log(&mut self, method: &InputAction) {
