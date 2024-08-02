@@ -25,6 +25,9 @@ enum InputAction {
     MoveEnd,
     MoveRightJump,
     MoveLeftJump,
+    ClearLine,
+    ClearRight,
+    ClearLeft,
     // RmRightWord,
     // RmLeftWord,
     MoveHome,
@@ -121,6 +124,10 @@ fn kbd_event(key_event: KeyEvent) -> Command {
             Command::InputAction(InputAction::BackSpace)
         }
 
+        KeyCode::Backspace if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
+            Command::InputAction(InputAction::ClearLine)
+        }
+
         KeyCode::Up if key_event.modifiers == KeyModifiers::from_bits(0x0).unwrap() => {
             Command::InputAction(InputAction::HistoryPrev)
         }
@@ -157,6 +164,12 @@ fn kbd_event(key_event: KeyEvent) -> Command {
             // 'h' if key_event.modifiers == KeyModifiers::from_bits(0x2).unwrap() => {
             //     Command::HistoryAction(HistoryAction::List)
             // }
+            'r' if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
+                Command::InputAction(InputAction::ClearRight)
+            }
+            'l' if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
+                Command::InputAction(InputAction::ClearLeft)
+            }
             c if key_event.modifiers == KeyModifiers::from_bits(0x0).unwrap() => {
                 Command::InputAction(InputAction::PutChar(c))
             }
@@ -216,6 +229,30 @@ impl Input {
                 for _idx in 0..self.cursor {
                     _ = sol.write(b"\x1b[C");
                 }
+            }
+
+            InputAction::ClearLine => {
+                self.clear_line();
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
+            }
+
+            InputAction::ClearRight => {
+                self.clear_right();
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
+                _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
+                // for _idx in 0..self.cursor {
+                //     _ = sol.write(b"\x1b[C");
+                // }
+            }
+
+            InputAction::ClearLeft => {
+                self.clear_left();
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
+                _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
+                _ = sol.write(&[13]);
             }
 
             InputAction::CRLF => {
@@ -377,7 +414,23 @@ impl Input {
         true
     }
 
-    fn clear_line(&mut self) {}
+    fn clear_line(&mut self) {
+        self.cursor = 0;
+        self.values.clear();
+    }
+
+    fn clear_right(&mut self) {
+        for _ in self.cursor..self.values.len() {
+            self.values.pop();
+        }
+    }
+
+    fn clear_left(&mut self) {
+        for _ in 0..self.cursor {
+            self.values.remove(0);
+        }
+        self.cursor = 0;
+    }
 
     const STOPPERS: [char; 11] = ['/', ' ', '-', '_', ',', '"', '\'', ';', ':', '.', ','];
 
