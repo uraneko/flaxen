@@ -12,7 +12,20 @@ fn tokenize(l: &mut String) -> Vec<&str> {
 }
 
 // TODO: get rid of crossterm dependency
-// TODO: turn this module into a lib crate
+// TODO: render graphics
+// TODO: add a prompt
+// raw mode:
+// from [https://www.reddit.com/r/rust/comments/1d3ofwo/raw_mode_in_terminal/]
+// comment [https://www.reddit.com/r/rust/comments/1d3ofwo/comment/l68vr45/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button]
+// If you don’t want to use any external crates
+// you need to create exetrns for C functions from unistd.h
+// and possibly some other places.
+// Specifically to enable raw mode you need tcgetattr and tcsetattr functions.
+
+// If you’re willing to accept external crates which provide low-level wrappers for C functions
+// than you libc and nix crate will provide all the functions and types.
+//
+//
 
 #[derive(Debug)]
 enum InputAction {
@@ -239,12 +252,11 @@ impl Input {
 
             InputAction::ClearRight => {
                 self.clear_right();
-                _ = sol.write(b"\x1b[2K");
-                _ = sol.write(&[13]);
-                _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
-                // for _idx in 0..self.cursor {
-                //     _ = sol.write(b"\x1b[C");
-                // }
+                _ = sol.write(b"\x1b[0K");
+
+                // _ = sol.write(b"\x1b[2K");
+                // _ = sol.write(&[13]);
+                // _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
             }
 
             InputAction::ClearLeft => {
@@ -271,6 +283,7 @@ impl Input {
 
             InputAction::PutChar(c) => {
                 self.put_char(*c);
+                // _ = sol.write(b"\x1b[31;1;4m");
                 _ = sol.write(b"\x1b[2K");
                 _ = sol.write(&[13]);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
