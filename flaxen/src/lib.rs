@@ -3,14 +3,6 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::{stdin, stdout, Read, Stdin, StdoutLock, Write};
 
-fn tokenize(l: &mut String) -> Vec<&str> {
-    l.trim_end_matches('\n')
-        .trim()
-        .split(' ')
-        // .map(|s| s.to_string())
-        .collect::<Vec<&str>>()
-}
-
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
 // TODO: add a prompt
@@ -58,6 +50,13 @@ enum Command {
 // TODO: change messy script save impl
 // when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
 
+fn tokenize(l: &mut String) -> Vec<&str> {
+    l.trim_end_matches('\n')
+        .trim()
+        .split(' ')
+        .collect::<Vec<&str>>()
+}
+
 pub fn init() -> (std::io::StdoutLock<'static>, Input, History, String) {
     _ = enable_raw_mode();
 
@@ -77,7 +76,12 @@ pub fn run<'a>(
 ) -> Vec<&'a str> {
     let cmd = keyboard();
     cmd.execute(input, history, stdout, user_input);
-    tokenize(user_input)
+
+    if !user_input.is_empty() {
+        tokenize(user_input)
+    } else {
+        vec![]
+    }
 }
 
 impl Command {
@@ -271,13 +275,9 @@ impl Input {
                 h.log(&ia);
                 _ = sol.write(&[13, 10]);
 
-                let mut tokens = tokenize(ui).into_iter();
-
                 // TODO: tokens probably should be peekable in general
                 // HACK: this is a wasteful hack
                 // should be prompted in a popup buffer for the name
-
-                ui.clear();
             }
 
             InputAction::PutChar(c) => {
