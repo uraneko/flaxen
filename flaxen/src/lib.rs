@@ -58,17 +58,26 @@ enum Command {
 // TODO: change messy script save impl
 // when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
 
-pub fn flaxen() {
-    let mut stdout = std::io::stdout().lock();
+pub fn init() -> (std::io::StdoutLock<'static>, Input, History, String) {
+    _ = enable_raw_mode();
 
-    let (mut input, mut history) = terminal_init();
+    (
+        std::io::stdout().lock(),
+        Input::new(),
+        History::new(),
+        String::new(),
+    )
+}
 
-    let mut user_input = String::new();
-
-    '_main: loop {
-        let cmd = keyboard();
-        cmd.execute(&mut input, &mut history, &mut stdout, &mut user_input);
-    }
+pub fn run<'a>(
+    input: &mut Input,
+    history: &mut History,
+    stdout: &mut std::io::StdoutLock<'static>,
+    user_input: &'a mut String,
+) -> Vec<&'a str> {
+    let cmd = keyboard();
+    cmd.execute(input, history, stdout, user_input);
+    tokenize(user_input)
 }
 
 impl Command {
@@ -105,16 +114,6 @@ use crossterm::event::{read as kbd_read, Event, KeyCode, KeyEvent, KeyModifiers}
 use crossterm::terminal::enable_raw_mode;
 
 use std::thread::{scope, Scope};
-
-pub(crate) fn terminal_init() -> (Input, History) {
-    _ = enable_raw_mode();
-
-    // let in_buf_ex: [u8; 65_536] = [0; 65_536];
-
-    // let in_buf: [u8; 8192] = [0; 8192];
-
-    (Input::new(), History::new())
-}
 
 fn keyboard() -> Command {
     match kbd_read() {
@@ -194,7 +193,7 @@ fn kbd_event(key_event: KeyEvent) -> Command {
 }
 
 #[derive(Debug)]
-struct Input {
+pub struct Input {
     values: Vec<char>,
     cursor: usize,
     debug_log: std::fs::File,
@@ -374,9 +373,8 @@ impl Input {
     // the fns other than write are not to be touched
 
     fn cr_lf(&mut self, h: &mut History, user_input: &mut String) {
-        h.push(self.values.clone());
-        *user_input = self.values.clone().into_iter().collect::<String>();
-        self.values = Vec::new();
+        h.push(self.values.to_vec());
+        *user_input = self.values.drain(..).collect::<String>();
         self.cursor = 0;
     }
 
@@ -525,7 +523,7 @@ impl Input {
 // this logic is implemented in the functionality
 
 #[derive(Debug)]
-struct History {
+pub struct History {
     debug_log: std::fs::File,
     log: Vec<Vec<char>>,
     cursor: usize,
