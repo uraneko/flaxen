@@ -50,7 +50,7 @@ enum Command {
 // TODO: change messy script save impl
 // when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
 
-fn tokenize(l: &mut String) -> Vec<&str> {
+pub fn tokenize(l: &mut String) -> Vec<&str> {
     l.trim_end_matches('\n')
         .trim()
         .split(' ')
