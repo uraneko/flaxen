@@ -51,6 +51,10 @@ enum Command {
 // when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
 
 pub fn tokenize(l: &mut String) -> Vec<&str> {
+    if l.is_empty() {
+        return vec![];
+    }
+
     l.trim_end_matches('\n')
         .trim()
         .split(' ')
@@ -77,11 +81,7 @@ pub fn run<'a>(
     let cmd = keyboard();
     cmd.execute(input, history, stdout, user_input);
 
-    if !user_input.is_empty() {
-        tokenize(user_input)
-    } else {
-        vec![]
-    }
+    tokenize(user_input)
 }
 
 impl Command {
