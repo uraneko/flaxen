@@ -59,6 +59,12 @@ pub fn tokenize(l: &mut String) -> Vec<&str> {
         .trim()
         .split(' ')
         .collect::<Vec<&str>>()
+
+    // assert!({
+    //     let mut t = tokens.clone();
+    //     t.dedup();
+    //     t != vec![""]
+    // });
 }
 
 pub fn init() -> (std::io::StdoutLock<'static>, Input, History, String) {

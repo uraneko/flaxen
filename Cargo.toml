@@ -11,7 +11,6 @@ crossterm = "0.27.0"
 # path = "src/lib.rs"
 
 [[example]]
-name = "flaxen"
-path = "examples/main.rs"
-
+name = "default"
+path = "examples/default.rs"
 
