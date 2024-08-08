@@ -200,16 +200,19 @@ fn kbd_event(key_event: KeyEvent) -> Command {
 pub struct Input {
     values: Vec<char>,
     cursor: usize,
+    #[cfg(debug_assertions)]
     debug_log: std::fs::File,
 }
 
 impl Input {
     fn new() -> Self {
         let mut i = Self {
+            #[cfg(debug_assertions)]
             debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap(),
             values: Vec::new(),
             cursor: 0,
         };
+        #[cfg(debug_assertions)]
         i.log(&InputAction::New);
 
         i
@@ -272,6 +275,7 @@ impl Input {
 
             InputAction::CRLF => {
                 self.cr_lf(h, ui);
+                #[cfg(debug_assertions)]
                 h.log(&ia);
                 _ = sol.write(&[13, 10]);
 
@@ -330,6 +334,7 @@ impl Input {
                     self.cursor = self.values.len();
                     _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 }
+                #[cfg(debug_assertions)]
                 h.log(&ia);
             }
 
@@ -340,11 +345,13 @@ impl Input {
                     self.cursor = self.values.len();
                     _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 }
+                #[cfg(debug_assertions)]
                 h.log(&ia);
             }
         }
 
         _ = sol.flush();
+        #[cfg(debug_assertions)]
         self.log(&ia);
     }
 
@@ -492,13 +499,23 @@ impl Input {
         }
     }
 
+    #[cfg(debug_assertions)]
     fn log(&mut self, method: &InputAction) {
         self.debug_log
             .write_all(
                 format!(
                     "[LOG::{:?} - {:?}] {{ values[{:?}] = '{:?}' }} - {:?}\r\n",
                     method,
-                    std::time::Instant::now(),
+                    std::process::Command::new("date")
+                        .arg("+\"%H:%M:%S:%N\"")
+                        .output()
+                        .expect("couldnt get time from linux command 'date'")
+                        .stdout
+                        .into_iter()
+                        .map(|u| u as char)
+                        .collect::<String>()
+                        .replacen("\"", "", 2)
+                        .trim_end_matches("\n"),
                     if self.cursor == 0 {
                         None
                     } else {
@@ -524,6 +541,7 @@ impl Input {
 
 #[derive(Debug)]
 pub struct History {
+    #[cfg(debug_assertions)]
     debug_log: std::fs::File,
     log: Vec<Vec<char>>,
     cursor: usize,
@@ -533,11 +551,13 @@ pub struct History {
 impl History {
     fn new() -> Self {
         let mut h = Self {
+            #[cfg(debug_assertions)]
             debug_log: std::fs::File::create("resources/logs/terminal/history").unwrap(),
             log: Vec::new(),
             cursor: 0,
             temp: None,
         };
+        #[cfg(debug_assertions)]
         h.log(&InputAction::New);
 
         h
@@ -585,13 +605,23 @@ impl History {
         self.cursor = self.log.len();
     }
 
+    #[cfg(debug_assertions)]
     fn log(&mut self, method: &InputAction) {
         self.debug_log
             .write_all(
                 format!(
                     "[LOG::{:?} - {:?}] {{ values[{:?}] = '{:?}' }} - {:?}\r\n",
                     method,
-                    std::time::Instant::now(),
+                    std::process::Command::new("date")
+                        .arg("+\"%H:%M:%S:%N\"")
+                        .output()
+                        .expect("couldnt get time from linux command 'date'")
+                        .stdout
+                        .into_iter()
+                        .map(|u| u as char)
+                        .collect::<String>()
+                        .replacen("\"", "", 2)
+                        .trim_end_matches("\n"),
                     if self.cursor == 0 {
                         None
                     } else {

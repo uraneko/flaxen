@@ -1,4 +1,4 @@
-use crate::{init, run};
+use flaxen::{init, run};
 
 fn main() {
     let (mut sol, mut i, mut h, mut ui) = init();
