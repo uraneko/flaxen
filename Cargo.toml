@@ -6,11 +6,12 @@ edition = "2021"
 [dependencies]
 crossterm = "0.27.0"
 
-# [lib]
-# name = "lib"
-# path = "src/lib.rs"
+[[test]]
+name = "basic_input"
+path = "src/lib.rs"
 
 [[example]]
 name = "default"
 path = "examples/default.rs"
+
 

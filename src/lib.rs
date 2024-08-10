@@ -654,3 +654,69 @@ impl History {
 // backspace erasure of any position inside input value char
 
 // TODO: program prompt
+
+#[cfg(test)]
+mod tests {
+    use super::{init, run, History, Input};
+    use std::io::Write;
+
+    #[test]
+    fn test_put_char() {
+        let mut i = Input::new();
+
+        let mut idx = 0;
+        ['p', 'i', 'k', 'a'].into_iter().for_each(|c| {
+            i.put_char(c);
+            idx += 1;
+
+            assert_eq!(i.values[i.cursor - 1], c);
+            assert_eq!(idx, i.cursor);
+        })
+    }
+
+    #[test]
+    fn test_backspace() {
+        let mut i = Input::new();
+
+        let input = "pikatchino";
+        input.chars().into_iter().for_each(|c| i.put_char(c));
+
+        i.backspace();
+
+        assert!({ i.cursor == input.len() - 1 && i.values[i.cursor - 1] == 'n' });
+    }
+
+    #[test]
+    fn test_to_end() {
+        let mut i = Input::new();
+
+        "pikatchaa".chars().into_iter().for_each(|c| i.put_char(c));
+        // cursor is by default at end, but we still move it to end
+        i.to_end();
+
+        assert!({ i.cursor == 9 && i.values[i.cursor - 1] == 'a' });
+
+        // now we test moving to end from somewhere else
+        i.to_the_left();
+        i.to_the_left();
+        i.to_end();
+
+        assert!({ i.cursor == 9 && i.values[i.cursor - 1] == 'a' });
+
+        // and finally, moving to end from home (first cell in line)
+        i.to_home();
+        i.to_end();
+
+        assert!({ i.cursor == 9 && i.values[i.cursor - 1] == 'a' });
+    }
+
+    #[test]
+    fn test_to_home() {
+        let mut i = Input::new();
+
+        "pikatchuu".chars().into_iter().for_each(|c| i.put_char(c));
+        i.to_home();
+
+        assert!({ i.cursor == 0 && i.values[i.cursor] == 'p' });
+    }
+}
