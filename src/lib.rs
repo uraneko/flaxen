@@ -50,22 +50,22 @@ enum Command {
 // TODO: change messy script save impl
 // when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
 
-pub fn tokenize(l: &mut String) -> Vec<&str> {
-    if l.is_empty() {
-        return vec![];
-    }
-
-    l.trim_end_matches('\n')
-        .trim()
-        .split(' ')
-        .collect::<Vec<&str>>()
-
-    // assert!({
-    //     let mut t = tokens.clone();
-    //     t.dedup();
-    //     t != vec![""]
-    // });
-}
+// pub fn tokenize(l: &mut String) -> Vec<&str> {
+//     if l.is_empty() {
+//         return vec![];
+//     }
+//
+//     l.trim_end_matches('\n')
+//         .trim()
+//         .split(' ')
+//         .collect::<Vec<&str>>()
+//
+//     // assert!({
+//     //     let mut t = tokens.clone();
+//     //     t.dedup();
+//     //     t != vec![""]
+//     // });
+// }
 
 pub fn init() -> (std::io::StdoutLock<'static>, Input, History, String) {
     _ = enable_raw_mode();
@@ -83,11 +83,11 @@ pub fn run<'a>(
     history: &mut History,
     stdout: &mut std::io::StdoutLock<'static>,
     user_input: &'a mut String,
-) -> Vec<&'a str> {
+) -> String {
     let cmd = keyboard();
     cmd.execute(input, history, stdout, user_input);
 
-    tokenize(user_input)
+    user_input.drain(..).collect::<String>()
 }
 
 impl Command {
