@@ -9,6 +9,8 @@ on:
     branches: 
       - main
 
+  workflow_dispatch:
+
 jobs: 
   test_then_build:
     name: flaxen - latest
