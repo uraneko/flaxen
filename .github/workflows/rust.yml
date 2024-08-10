@@ -22,5 +22,5 @@ jobs:
           - stable
     steps: 
       - uses: actions/checkout@v4
-      - run : cargo b --verbose
+      - run : cargo b --verbose --release
       - run: cargo t --verbose
