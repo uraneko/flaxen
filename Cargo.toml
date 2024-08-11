@@ -6,7 +6,7 @@ description = "Terminal raw mode utilities"
 license = "MIT"
 repository = "https://github.com/uraneko/ragout"
 readme = "README.md"
-keywords = ["terminal", "raw mode", "cli"]
+keywords = ["terminal", "raw_mode", "cli"]
 categories = ["command-line-interface"]
 exclude = ["resources/logs/", "Cargo.lock"]
 
