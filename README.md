@@ -1,6 +1,6 @@
-## flaxen - terminal Raw Mode Input Handler
+## ragout - terminal Raw Mode Input Handler
 
-flaxen is a library crate offering shell functionalities inside the terminal raw mode.
+ragout is a library crate offering shell functionalities inside the terminal raw mode.
 
 ## Features
 - **input movements**
@@ -22,7 +22,7 @@ flaxen is a library crate offering shell functionalities inside the terminal raw
 
 ```rust
 
-use flaxen::{init, run};
+use ragout::{init, run};
 
 fn main() {
     // enter raw mode and initialize necessary variables

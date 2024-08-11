@@ -1,4 +1,4 @@
-use flaxen::{init, run};
+use ragout::{init, run};
 
 fn main() {
     // enter raw mode and initialize necessary variables
