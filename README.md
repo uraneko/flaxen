@@ -44,5 +44,10 @@ fn main() {
 
 <br/><br/>
 
-<code style="color : red"></i><b>WARN:</b></code>
-this crate is still experimental, if something breaks, feel free open an issue / make a pr
+## License
+Licensed under the <a href="LICENSE">MIT license</a>.
+
+<br/><br/>
+
+<b style="color: red">WARN:</b>
+This crate is still experimental, if something breaks, feel free to open an issue or make a pr.

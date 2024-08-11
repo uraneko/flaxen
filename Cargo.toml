@@ -2,6 +2,8 @@
 name = "ragout"
 version = "0.1.0"
 edition = "2021"
+description = "Terminal raw mode utilities"
+license = "MIT"
 
 [dependencies]
 crossterm = "0.27.0"
