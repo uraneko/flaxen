@@ -621,7 +621,7 @@ impl History {
 }
 
 #[cfg(test)]
-mod tests {
+mod test_input {
     use super::{init, run, History, Input};
     use std::io::Write;
 
@@ -802,3 +802,6 @@ impl Input {
         }
     }
 }
+
+// #[cfg(test)]
+// mod test_prompt {}
