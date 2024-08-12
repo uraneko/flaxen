@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["terminal", "raw_mode", "cli"]
 categories = ["command-line-interface"]
 exclude = ["resources/logs/", "Cargo.lock"]
+documentation = "https://docs.rs/ragout"
 
 [dependencies]
 crossterm = "0.27.0"
