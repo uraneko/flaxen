@@ -2,7 +2,8 @@ use ragout::{init, run};
 
 fn main() {
     // enter raw mode and initialize necessary variables
-    let (mut sol, mut i, mut h, mut ui) = init();
+    let (mut sol, mut i, mut h, mut ui) = init("ragout - v0.1.0 - 🢖");
+
     'main: loop {
         // catch and handle user actions,
         // if input was submitted bind its value to input var
