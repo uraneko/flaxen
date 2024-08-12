@@ -719,4 +719,92 @@ mod tests {
 
         assert!({ i.cursor == 0 && i.values[i.cursor] == 'p' });
     }
+
+    #[test]
+    fn test_to_the_right() {
+        let mut i = Input::new();
+
+        "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
+        i.to_the_left();
+        i.to_the_left();
+
+        assert_eq!(i.values[i.cursor - 1], 'h');
+        assert_eq!(i.cursor, "pikatchau".len() - 2);
+    }
+
+    #[test]
+    fn test_to_the_left() {
+        let mut i = Input::new();
+
+        "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
+        i.to_home();
+        i.to_the_right();
+        i.to_the_right();
+
+        assert_eq!(i.values[i.cursor], 'k');
+        assert_eq!(i.cursor, 2);
+    }
+
+    #[test]
+    fn test_cr_lf() {
+        let mut i = Input::new();
+        let mut h = History::new();
+        let mut user_input = String::new();
+
+        "pikatcharu".chars().into_iter().for_each(|c| i.put_char(c));
+
+        i.cr_lf(&mut h, &mut user_input);
+
+        assert_eq!(
+            h.log[0],
+            "pikatcharu".chars().into_iter().collect::<Vec<char>>()
+        );
+        assert!(i.values.is_empty());
+        assert_eq!(i.cursor, 0);
+    }
+
+    #[test]
+    fn test_clear_line() {
+        let mut i = Input::new();
+
+        "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
+
+        assert!({ i.cursor == "pikauchi".len() && i.values[i.cursor - 1] == 'i' });
+
+        i.clear_line();
+        assert!(i.values.is_empty());
+        assert_eq!(i.cursor, 0);
+    }
+
+    #[test]
+    fn test_clear_right() {
+        let mut i = Input::new();
+
+        "pikatchiatto"
+            .chars()
+            .into_iter()
+            .for_each(|c| i.put_char(c));
+        (0..4).for_each(|_| {
+            i.to_the_left();
+        });
+
+        i.clear_right();
+        assert_eq!(i.values.iter().map(|c| *c).collect::<String>(), "pikatchi");
+    }
+
+    #[test]
+    fn test_clear_left() {
+        let mut i = Input::new();
+
+        "pikatchiatto"
+            .chars()
+            .into_iter()
+            .for_each(|c| i.put_char(c));
+        (0..4).for_each(|_| {
+            i.to_the_left();
+        });
+
+        i.clear_left();
+        assert_eq!(i.values.iter().map(|c| *c).collect::<String>(), "atto");
+    }
 }
