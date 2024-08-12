@@ -191,7 +191,6 @@ pub struct Input {
     cursor: usize,
     #[cfg(debug_assertions)]
     debug_log: std::fs::File,
-    start: usize,
     prompt: String,
 }
 
@@ -202,7 +201,6 @@ impl Input {
             debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap(),
             values: Vec::new(),
             cursor: 0,
-            start: prompt.len() + 1,
             prompt: prompt.to_owned(),
         };
         #[cfg(debug_assertions)]
@@ -236,10 +234,7 @@ impl Input {
                 self.backspace();
                 self.write_prompt(sol);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
-                // _ = sol.write(&[13]);
-                // for _idx in 0..self.cursor {
-                //     _ = sol.write(b"\x1b[C");
-                // }
+                self.sync_cursor(sol);
             }
 
             InputAction::ClearLine => {
@@ -250,18 +245,14 @@ impl Input {
             InputAction::ClearRight => {
                 self.clear_right();
                 _ = sol.write(b"\x1b[0K");
-
-                // _ = sol.write(b"\x1b[2K");
-                // _ = sol.write(&[13]);
-                // _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
+                self.sync_cursor(sol);
             }
 
             InputAction::ClearLeft => {
                 self.clear_left();
                 self.write_prompt(sol);
-
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
-                _ = sol.write(&[13]);
+                self.sync_cursor(sol);
             }
 
             InputAction::CRLF => {
@@ -280,12 +271,8 @@ impl Input {
                 self.put_char(*c);
                 // _ = sol.write(b"\x1b[31;1;4m");
                 self.write_prompt(sol);
-
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
-                // _ = sol.write(&[13]);
-                // for _idx in 0..self.cursor {
-                //     _ = sol.write(b"\x1b[C");
-                // }
+                self.sync_cursor(sol);
             }
 
             InputAction::MoveEnd => match self.to_end() {
@@ -300,26 +287,24 @@ impl Input {
             InputAction::MoveHome => {
                 if self.to_home() {
                     _ = sol.write(&[13]);
-                    for _ in 0..self.prompt.len() {
+                    for _ in 0..self.prompt.len() + 1 {
                         _ = sol.write(b"\x1b[C");
                     }
+                    // OR
+                    // self.write_prompt(sol);
                 }
             }
 
             InputAction::MoveRightJump => {
                 self.to_right_jump();
                 _ = sol.write(&[13]);
-                for _idx in 0..self.cursor + self.prompt.len() {
-                    _ = sol.write(b"\x1b[C");
-                }
+                self.sync_cursor(sol);
             }
 
             InputAction::MoveLeftJump => {
                 self.to_left_jump();
                 _ = sol.write(&[13]);
-                for _idx in 0..self.cursor + self.prompt.len() {
-                    _ = sol.write(b"\x1b[C");
-                }
+                self.sync_cursor(sol);
             }
 
             InputAction::HistoryPrev => {
@@ -415,10 +400,9 @@ impl Input {
 
     fn to_end(&mut self) -> usize {
         let diff = self.values.len() - self.cursor;
-        if diff == 0 {
-            return diff;
+        if diff > 0 {
+            self.cursor = self.values.len();
         }
-        self.cursor = self.values.len();
 
         diff
     }
@@ -444,7 +428,7 @@ impl Input {
     }
 
     fn clear_left(&mut self) {
-        for _ in 0..self.cursor - self.start {
+        for _ in 0..self.cursor {
             self.values.remove(0);
         }
         self.cursor = 0;
@@ -793,9 +777,7 @@ mod tests {
 impl Input {
     fn overwrite_prompt(&mut self, new_prompt: &str) {
         self.prompt.clear();
-        self.start = new_prompt.len() + 1;
         self.prompt.push_str(new_prompt);
-        // TODO:
     }
 
     fn write_prompt(&self, sol: &mut StdoutLock) {
@@ -808,6 +790,15 @@ impl Input {
                 .into_iter()
                 .map(|c| c as u8)
                 .collect::<Vec<u8>>(),
-        )
+        );
+        _ = sol.write(b" ");
+        _ = sol.flush();
+    }
+
+    fn sync_cursor(&self, sol: &mut StdoutLock) {
+        _ = sol.write(&[13]);
+        for _idx in 0..self.prompt.len() + 1 + self.cursor {
+            _ = sol.write(b"\x1b[C");
+        }
     }
 }
