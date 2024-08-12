@@ -61,11 +61,11 @@ pub fn init(prompt: &str) -> (std::io::StdoutLock<'static>, Input, History, Stri
     (sol, i, History::new(), String::new())
 }
 
-pub fn run<'a>(
+pub fn run(
     input: &mut Input,
     history: &mut History,
     stdout: &mut std::io::StdoutLock<'static>,
-    user_input: &'a mut String,
+    user_input: &mut String,
 ) -> String {
     let cmd = keyboard();
     cmd.execute(input, history, stdout, user_input);
