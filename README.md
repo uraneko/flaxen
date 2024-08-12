@@ -1,6 +1,7 @@
 ## ragout - terminal Raw Mode Input Handler
 
 ragout is a library crate offering shell functionalities inside the terminal raw mode.
+This crate is for cli tools that need functionalities beyond just the normally provided basic cli tool input mode (input characters, delete character behind cursor).
 
 ## Features
 - **input movements**
@@ -50,4 +51,4 @@ Licensed under the <a href="LICENSE">MIT license</a>.
 <br/><br/>
 
 <b style="color: red">WARN:</b>
-This crate is still experimental, if something breaks, feel free to open an issue or make a pr.
+This crate is still experimental, if something breaks, or you want a feature, feel free to open an issue or make a pr.
