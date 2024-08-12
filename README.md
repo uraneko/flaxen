@@ -50,5 +50,15 @@ Licensed under the <a href="LICENSE">MIT license</a>.
 
 <br/><br/>
 
+## Versioning 
+Follows the [SemVer Spec](https://semver.org/).
+Until the time arrives for the version to reach 1.0.0, the repo will adhere to the following rules for versions x.y.z:
+- x is constant.
+- aside from a number of exceptions, changes incrementing y are accompanied by a milestone creation,
+i.e., the first pr of a new milestone increments y.
+- everything else increments z.
+
+<br/><br/>
+
 <b style="color: red">WARN:</b>
-This crate is still experimental, if something breaks, or you want a feature, feel free to open an issue or make a pr.
+This crate is still unstable, if something breaks, or you want a feature, feel free to open an issue or make a pr.
