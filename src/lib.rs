@@ -287,7 +287,7 @@ impl Input {
             InputAction::MoveHome => {
                 if self.to_home() {
                     _ = sol.write(&[13]);
-                    for _ in 0..self.prompt.len() + 1 {
+                    for _ in 0..self.prompt.len() {
                         _ = sol.write(b"\x1b[C");
                     }
                     // OR
@@ -791,13 +791,13 @@ impl Input {
                 .map(|c| c as u8)
                 .collect::<Vec<u8>>(),
         );
-        _ = sol.write(b" ");
+        // _ = sol.write(b" ");
         _ = sol.flush();
     }
 
     fn sync_cursor(&self, sol: &mut StdoutLock) {
         _ = sol.write(&[13]);
-        for _idx in 0..self.prompt.len() + 1 + self.cursor {
+        for _idx in 0..self.prompt.len() + self.cursor {
             _ = sol.write(b"\x1b[C");
         }
     }
