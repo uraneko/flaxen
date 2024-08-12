@@ -3,9 +3,15 @@ use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::{stdin, stdout, Read, Stdin, StdoutLock, Write};
 
+pub mod containers;
+use containers::prompt;
+
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
 // TODO: add a prompt
+// TODO: option to start  in alternate screen
+// would use "\e[?1049h" to enter alternate screen
+// then use  "\e[?1049l" to exit alternate screen when exiting program
 // raw mode:
 // from [https://www.reddit.com/r/rust/comments/1d3ofwo/raw_mode_in_terminal/]
 // comment [https://www.reddit.com/r/rust/comments/1d3ofwo/comment/l68vr45/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button]
