@@ -27,16 +27,18 @@ use ragout::{init, run};
 
 fn main() {
     // enter raw mode and initialize necessary variables
-    let (mut sol, mut i, mut h, mut ui) = init();
+    // the string literal argument will be the value of the prompt
+    let (mut sol, mut i, mut h, mut ui) = init("");
+
     'main: loop {
-        // catch and handle user actions,
-        // if input was submitted bind its value to input var
+        // catch and handle user actions
+        
+        // bind user input value to input var
         let input = run(&mut i, &mut h, &mut sol, &mut ui);
 
-        // reset user input to empty string
+        // handle input then reset ui var to empty string
         if !input.is_empty() {
             // do some stuff with the user input
-            ui.clear();
         }
     }
 }
@@ -53,7 +55,7 @@ Licensed under the <a href="LICENSE">MIT license</a>.
 ## Versioning 
 Follows the [SemVer Spec](https://semver.org/).
 Until the time arrives for the version to reach 1.0.0, the repo will adhere to the following rules for versions x.y.z:
-- x is constant.
+- x is constant at 0.
 - aside from a number of exceptions, changes incrementing y are accompanied by a milestone creation,
 i.e., the first pr of a new milestone increments y.
 - everything else increments z.
