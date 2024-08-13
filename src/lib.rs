@@ -1,24 +1,23 @@
-#![cfg_attr(debug_assertions, allow(dead_code, unused_imports))]
+//! # ragout
 use std::collections::HashMap;
 use std::fs::read_to_string;
 use std::io::{stdin, stdout, Read, Stdin, StdoutLock, Write};
 
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
-// TODO: add a prompt
 // TODO: option to start  in alternate screen
 // would use "\e[?1049h" to enter alternate screen
 // then use  "\e[?1049l" to exit alternate screen when exiting program
 // raw mode:
 // from [https://www.reddit.com/r/rust/comments/1d3ofwo/raw_mode_in_terminal/]
 // comment [https://www.reddit.com/r/rust/comments/1d3ofwo/comment/l68vr45/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button]
-// If you don’t want to use any external crates
+// "If you don’t want to use any external crates
 // you need to create exetrns for C functions from unistd.h
 // and possibly some other places.
 // Specifically to enable raw mode you need tcgetattr and tcsetattr functions.
 
 // If you’re willing to accept external crates which provide low-level wrappers for C functions
-// than you libc and nix crate will provide all the functions and types.
+// than you libc and nix crate will provide all the functions and types."
 //
 //
 
@@ -197,7 +196,12 @@ impl Input {
     fn new(prompt: &str) -> Self {
         let mut i = Self {
             #[cfg(debug_assertions)]
-            debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap(),
+            debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap_or_else(
+                |_| {
+                    std::fs::create_dir_all("resources/logs/terminal").unwrap();
+                    std::fs::File::create("resources/logs/terminal/input").unwrap()
+                },
+            ),
             values: Vec::new(),
             cursor: 0,
             prompt: prompt.to_owned(),
@@ -535,7 +539,12 @@ impl History {
     fn new() -> Self {
         let mut h = Self {
             #[cfg(debug_assertions)]
-            debug_log: std::fs::File::create("resources/logs/terminal/history").unwrap(),
+            debug_log: std::fs::File::create("resources/logs/terminal/history").unwrap_or_else(
+                |_| {
+                    std::fs::create_dir_all("resources/logs/terminal").unwrap();
+                    std::fs::File::create("resources/logs/terminal/history").unwrap()
+                },
+            ),
             log: Vec::new(),
             cursor: 0,
             temp: None,
