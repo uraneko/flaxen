@@ -6,6 +6,9 @@ use std::io::{stdin, stdout, Read, Stdin, StdoutLock, Write};
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
 // TODO: add a prompt
+// TODO: option to start  in alternate screen
+// would use "\e[?1049h" to enter alternate screen
+// then use  "\e[?1049l" to exit alternate screen when exiting program
 // raw mode:
 // from [https://www.reddit.com/r/rust/comments/1d3ofwo/raw_mode_in_terminal/]
 // comment [https://www.reddit.com/r/rust/comments/1d3ofwo/comment/l68vr45/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button]
@@ -47,42 +50,22 @@ enum Command {
     None,
 }
 
-// TODO: change messy script save impl
-// when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
-
-// pub fn tokenize(l: &mut String) -> Vec<&str> {
-//     if l.is_empty() {
-//         return vec![];
-//     }
-//
-//     l.trim_end_matches('\n')
-//         .trim()
-//         .split(' ')
-//         .collect::<Vec<&str>>()
-//
-//     // assert!({
-//     //     let mut t = tokens.clone();
-//     //     t.dedup();
-//     //     t != vec![""]
-//     // });
-// }
-
-pub fn init() -> (std::io::StdoutLock<'static>, Input, History, String) {
+pub fn init(prompt: &str) -> (std::io::StdoutLock<'static>, Input, History, String) {
     _ = enable_raw_mode();
 
-    (
-        std::io::stdout().lock(),
-        Input::new(),
-        History::new(),
-        String::new(),
-    )
+    let mut sol = std::io::stdout().lock();
+    let i = Input::new(prompt);
+    i.write_prompt(&mut sol);
+    _ = sol.flush();
+
+    (sol, i, History::new(), String::new())
 }
 
-pub fn run<'a>(
+pub fn run(
     input: &mut Input,
     history: &mut History,
     stdout: &mut std::io::StdoutLock<'static>,
-    user_input: &'a mut String,
+    user_input: &mut String,
 ) -> String {
     let cmd = keyboard();
     cmd.execute(input, history, stdout, user_input);
@@ -212,7 +195,7 @@ pub struct Input {
 }
 
 impl Input {
-    fn new() -> Self {
+    fn new(prompt: &str) -> Self {
         let mut i = Self {
             #[cfg(debug_assertions)]
             debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap(),
@@ -249,16 +232,14 @@ impl Input {
 
             InputAction::BackSpace => {
                 self.backspace();
-                _ = sol.write(b"\x1b[2K");
-                _ = sol.write(&[13]);
+                self.write_prompt(sol);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 self.sync_cursor(sol);
             }
 
             InputAction::ClearLine => {
                 self.clear_line();
-                _ = sol.write(b"\x1b[2K");
-                _ = sol.write(&[13]);
+                self.write_prompt(sol);
             }
 
             InputAction::ClearRight => {
@@ -279,6 +260,7 @@ impl Input {
                 #[cfg(debug_assertions)]
                 h.log(&ia);
                 _ = sol.write(&[13, 10]);
+                self.write_prompt(sol);
 
                 // TODO: tokens probably should be peekable in general
                 // HACK: this is a wasteful hack
@@ -327,8 +309,7 @@ impl Input {
 
             InputAction::HistoryPrev => {
                 if h.prev(&mut self.values) {
-                    _ = sol.write(b"\x1b[2K");
-                    _ = sol.write(&[13]);
+                    self.write_prompt(sol);
                     self.cursor = self.values.len();
                     _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 }
@@ -338,8 +319,7 @@ impl Input {
 
             InputAction::HistoryNext => {
                 if h.next(&mut self.values) {
-                    _ = sol.write(b"\x1b[2K");
-                    _ = sol.write(&[13]);
+                    self.write_prompt(sol);
                     self.cursor = self.values.len();
                     _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 }
@@ -352,7 +332,9 @@ impl Input {
         #[cfg(debug_assertions)]
         self.log(&ia);
     }
+}
 
+impl Input {
     fn put_char(&mut self, c: char) {
         match self.values.is_empty() {
             true => {
@@ -373,8 +355,13 @@ impl Input {
         }
     }
 
-    // TODO: shift cr registers input and sends it to command
-    // WARN: do NOT touch the Input implementation...
+    // PRIORITY HIGH:
+    // TODO: add prompt (wip)
+    // TODO: add documentation for the whole crate (branch docs)
+    //
+
+    // TODO: shift cr registers input and sends it to command; aka multi line input
+    // WARN: do NOT touch this Input implementation
     // the fns other than write are not to be touched
 
     fn cr_lf(&mut self, h: &mut History, user_input: &mut String) {
@@ -387,8 +374,8 @@ impl Input {
         if self.values.is_empty() || self.cursor == 0 {
             return;
         }
-        self.values.remove(self.cursor - 1);
         if self.cursor > 0 {
+            self.values.remove(self.cursor - 1);
             self.cursor -= 1;
         }
     }
@@ -560,10 +547,6 @@ impl History {
         h
     }
 
-    // BUG: when input string is an empty value and history is visited
-    // the temp logic breaks
-    // FIXED using option<string> instead of string for temp
-
     fn prev(&mut self, value: &mut Vec<char>) -> bool {
         if self.cursor == 0 {
             return false;
@@ -636,15 +619,6 @@ impl History {
             .unwrap();
     }
 }
-// input:
-// starts empty,
-// only writing is possible: value.push(char)
-// that unlocks:
-// movement to the right/left
-// inserting char at any position inside input value
-// backspace erasure of any position inside input value char
-
-// TODO: program prompt
 
 #[cfg(test)]
 mod test_input {
@@ -653,7 +627,7 @@ mod test_input {
 
     #[test]
     fn test_put_char() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         let mut idx = 0;
         ['p', 'i', 'k', 'a'].into_iter().for_each(|c| {
@@ -667,7 +641,7 @@ mod test_input {
 
     #[test]
     fn test_backspace() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         let input = "pikatchino";
         input.chars().into_iter().for_each(|c| i.put_char(c));
@@ -679,7 +653,7 @@ mod test_input {
 
     #[test]
     fn test_to_end() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikatchaa".chars().into_iter().for_each(|c| i.put_char(c));
         // cursor is by default at end, but we still move it to end
@@ -703,7 +677,7 @@ mod test_input {
 
     #[test]
     fn test_to_home() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikatchuu".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -713,7 +687,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_right() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_the_left();
@@ -725,7 +699,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_left() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -738,7 +712,7 @@ mod test_input {
 
     #[test]
     fn test_cr_lf() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
         let mut h = History::new();
         let mut user_input = String::new();
 
@@ -756,7 +730,7 @@ mod test_input {
 
     #[test]
     fn test_clear_line() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
 
@@ -769,7 +743,7 @@ mod test_input {
 
     #[test]
     fn test_clear_right() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikatchiatto"
             .chars()
@@ -785,7 +759,7 @@ mod test_input {
 
     #[test]
     fn test_clear_left() {
-        let mut i = Input::new();
+        let mut i = Input::new("");
 
         "pikatchiatto"
             .chars()
