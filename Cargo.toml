@@ -1,6 +1,6 @@
 [package]
 name = "ragout"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Terminal raw mode utilities"
 license = "MIT"
@@ -9,6 +9,7 @@ readme = "README.md"
 keywords = ["terminal", "raw_mode", "cli"]
 categories = ["command-line-interface"]
 exclude = ["resources/logs/", "Cargo.lock"]
+documentation = "https://docs.rs/ragout"
 
 [dependencies]
 crossterm = "0.27.0"
