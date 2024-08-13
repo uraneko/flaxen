@@ -208,10 +208,7 @@ pub struct Input {
     cursor: usize,
     #[cfg(debug_assertions)]
     debug_log: std::fs::File,
-<<<<<<< HEAD
     prompt: String,
-=======
->>>>>>> origin/main
 }
 
 impl Input {
@@ -221,10 +218,7 @@ impl Input {
             debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap(),
             values: Vec::new(),
             cursor: 0,
-<<<<<<< HEAD
             prompt: prompt.to_owned(),
-=======
->>>>>>> origin/main
         };
         #[cfg(debug_assertions)]
         i.log(&InputAction::New);
@@ -258,14 +252,7 @@ impl Input {
                 _ = sol.write(b"\x1b[2K");
                 _ = sol.write(&[13]);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
-<<<<<<< HEAD
                 self.sync_cursor(sol);
-=======
-                _ = sol.write(&[13]);
-                for _idx in 0..self.cursor {
-                    _ = sol.write(b"\x1b[C");
-                }
->>>>>>> origin/main
             }
 
             InputAction::ClearLine => {
@@ -282,12 +269,7 @@ impl Input {
 
             InputAction::ClearLeft => {
                 self.clear_left();
-<<<<<<< HEAD
                 self.write_prompt(sol);
-=======
-                _ = sol.write(b"\x1b[2K");
-                _ = sol.write(&[13]);
->>>>>>> origin/main
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 self.sync_cursor(sol);
             }
@@ -306,19 +288,9 @@ impl Input {
             InputAction::PutChar(c) => {
                 self.put_char(*c);
                 // _ = sol.write(b"\x1b[31;1;4m");
-<<<<<<< HEAD
                 self.write_prompt(sol);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 self.sync_cursor(sol);
-=======
-                _ = sol.write(b"\x1b[2K");
-                _ = sol.write(&[13]);
-                _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
-                _ = sol.write(&[13]);
-                for _idx in 0..self.cursor {
-                    _ = sol.write(b"\x1b[C");
-                }
->>>>>>> origin/main
             }
 
             InputAction::MoveEnd => match self.to_end() {
@@ -333,39 +305,24 @@ impl Input {
             InputAction::MoveHome => {
                 if self.to_home() {
                     _ = sol.write(&[13]);
-<<<<<<< HEAD
                     for _ in 0..self.prompt.len() {
                         _ = sol.write(b"\x1b[C");
                     }
                     // OR
                     // self.write_prompt(sol);
-=======
->>>>>>> origin/main
                 }
             }
 
             InputAction::MoveRightJump => {
                 self.to_right_jump();
                 _ = sol.write(&[13]);
-<<<<<<< HEAD
                 self.sync_cursor(sol);
-=======
-                for _idx in 0..self.cursor {
-                    _ = sol.write(b"\x1b[C");
-                }
->>>>>>> origin/main
             }
 
             InputAction::MoveLeftJump => {
                 self.to_left_jump();
                 _ = sol.write(&[13]);
-<<<<<<< HEAD
                 self.sync_cursor(sol);
-=======
-                for _idx in 0..self.cursor {
-                    _ = sol.write(b"\x1b[C");
-                }
->>>>>>> origin/main
             }
 
             InputAction::HistoryPrev => {
@@ -456,13 +413,8 @@ impl Input {
 
     fn to_end(&mut self) -> usize {
         let diff = self.values.len() - self.cursor;
-<<<<<<< HEAD
         if diff > 0 {
             self.cursor = self.values.len();
-=======
-        if diff == 0 {
-            return 0;
->>>>>>> origin/main
         }
 
         diff
