@@ -52,7 +52,7 @@ Until the time arrives for the version to reach 1.0.0, the repo will adhere to t
 - x is constant at 0.
 - aside from a number of exceptions, changes incrementing y are accompanied by a milestone creation,
 i.e., the first pr of a new milestone increments y.
-- everything else increments z.
+- everything else increments z. Consecutive small changes may be combined into a single incrementation of z.
 
 <br/><br/>
 
