@@ -6,9 +6,6 @@ use std::io::{stdin, stdout, Read, Stdin, StdoutLock, Write};
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
 // TODO: add a prompt
-// TODO: option to start  in alternate screen
-// would use "\e[?1049h" to enter alternate screen
-// then use  "\e[?1049l" to exit alternate screen when exiting program
 // raw mode:
 // from [https://www.reddit.com/r/rust/comments/1d3ofwo/raw_mode_in_terminal/]
 // comment [https://www.reddit.com/r/rust/comments/1d3ofwo/comment/l68vr45/?utm_source=share&utm_medium=web3x&utm_name=web3xcss&utm_term=1&utm_content=share_button]
@@ -50,22 +47,42 @@ enum Command {
     None,
 }
 
-pub fn init(prompt: &str) -> (std::io::StdoutLock<'static>, Input, History, String) {
+// TODO: change messy script save impl
+// when ctrl + s is pressed user is prompted for a script name then on cr script is saved as name
+
+// pub fn tokenize(l: &mut String) -> Vec<&str> {
+//     if l.is_empty() {
+//         return vec![];
+//     }
+//
+//     l.trim_end_matches('\n')
+//         .trim()
+//         .split(' ')
+//         .collect::<Vec<&str>>()
+//
+//     // assert!({
+//     //     let mut t = tokens.clone();
+//     //     t.dedup();
+//     //     t != vec![""]
+//     // });
+// }
+
+pub fn init() -> (std::io::StdoutLock<'static>, Input, History, String) {
     _ = enable_raw_mode();
 
-    let mut sol = std::io::stdout().lock();
-    let i = Input::new(prompt);
-    i.write_prompt(&mut sol);
-    _ = sol.flush();
-
-    (sol, i, History::new(), String::new())
+    (
+        std::io::stdout().lock(),
+        Input::new(),
+        History::new(),
+        String::new(),
+    )
 }
 
-pub fn run(
+pub fn run<'a>(
     input: &mut Input,
     history: &mut History,
     stdout: &mut std::io::StdoutLock<'static>,
-    user_input: &mut String,
+    user_input: &'a mut String,
 ) -> String {
     let cmd = keyboard();
     cmd.execute(input, history, stdout, user_input);
@@ -191,17 +208,23 @@ pub struct Input {
     cursor: usize,
     #[cfg(debug_assertions)]
     debug_log: std::fs::File,
+<<<<<<< HEAD
     prompt: String,
+=======
+>>>>>>> origin/main
 }
 
 impl Input {
-    fn new(prompt: &str) -> Self {
+    fn new() -> Self {
         let mut i = Self {
             #[cfg(debug_assertions)]
             debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap(),
             values: Vec::new(),
             cursor: 0,
+<<<<<<< HEAD
             prompt: prompt.to_owned(),
+=======
+>>>>>>> origin/main
         };
         #[cfg(debug_assertions)]
         i.log(&InputAction::New);
@@ -232,14 +255,23 @@ impl Input {
 
             InputAction::BackSpace => {
                 self.backspace();
-                self.write_prompt(sol);
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
+<<<<<<< HEAD
                 self.sync_cursor(sol);
+=======
+                _ = sol.write(&[13]);
+                for _idx in 0..self.cursor {
+                    _ = sol.write(b"\x1b[C");
+                }
+>>>>>>> origin/main
             }
 
             InputAction::ClearLine => {
                 self.clear_line();
-                self.write_prompt(sol);
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
             }
 
             InputAction::ClearRight => {
@@ -250,7 +282,12 @@ impl Input {
 
             InputAction::ClearLeft => {
                 self.clear_left();
+<<<<<<< HEAD
                 self.write_prompt(sol);
+=======
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
+>>>>>>> origin/main
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 self.sync_cursor(sol);
             }
@@ -260,7 +297,6 @@ impl Input {
                 #[cfg(debug_assertions)]
                 h.log(&ia);
                 _ = sol.write(&[13, 10]);
-                self.write_prompt(sol);
 
                 // TODO: tokens probably should be peekable in general
                 // HACK: this is a wasteful hack
@@ -270,9 +306,19 @@ impl Input {
             InputAction::PutChar(c) => {
                 self.put_char(*c);
                 // _ = sol.write(b"\x1b[31;1;4m");
+<<<<<<< HEAD
                 self.write_prompt(sol);
                 _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 self.sync_cursor(sol);
+=======
+                _ = sol.write(b"\x1b[2K");
+                _ = sol.write(&[13]);
+                _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
+                _ = sol.write(&[13]);
+                for _idx in 0..self.cursor {
+                    _ = sol.write(b"\x1b[C");
+                }
+>>>>>>> origin/main
             }
 
             InputAction::MoveEnd => match self.to_end() {
@@ -287,29 +333,45 @@ impl Input {
             InputAction::MoveHome => {
                 if self.to_home() {
                     _ = sol.write(&[13]);
+<<<<<<< HEAD
                     for _ in 0..self.prompt.len() {
                         _ = sol.write(b"\x1b[C");
                     }
                     // OR
                     // self.write_prompt(sol);
+=======
+>>>>>>> origin/main
                 }
             }
 
             InputAction::MoveRightJump => {
                 self.to_right_jump();
                 _ = sol.write(&[13]);
+<<<<<<< HEAD
                 self.sync_cursor(sol);
+=======
+                for _idx in 0..self.cursor {
+                    _ = sol.write(b"\x1b[C");
+                }
+>>>>>>> origin/main
             }
 
             InputAction::MoveLeftJump => {
                 self.to_left_jump();
                 _ = sol.write(&[13]);
+<<<<<<< HEAD
                 self.sync_cursor(sol);
+=======
+                for _idx in 0..self.cursor {
+                    _ = sol.write(b"\x1b[C");
+                }
+>>>>>>> origin/main
             }
 
             InputAction::HistoryPrev => {
                 if h.prev(&mut self.values) {
-                    self.write_prompt(sol);
+                    _ = sol.write(b"\x1b[2K");
+                    _ = sol.write(&[13]);
                     self.cursor = self.values.len();
                     _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 }
@@ -319,7 +381,8 @@ impl Input {
 
             InputAction::HistoryNext => {
                 if h.next(&mut self.values) {
-                    self.write_prompt(sol);
+                    _ = sol.write(b"\x1b[2K");
+                    _ = sol.write(&[13]);
                     self.cursor = self.values.len();
                     _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
                 }
@@ -332,9 +395,7 @@ impl Input {
         #[cfg(debug_assertions)]
         self.log(&ia);
     }
-}
 
-impl Input {
     fn put_char(&mut self, c: char) {
         match self.values.is_empty() {
             true => {
@@ -355,13 +416,8 @@ impl Input {
         }
     }
 
-    // PRIORITY HIGH:
-    // TODO: add prompt (wip)
-    // TODO: add documentation for the whole crate (branch docs)
-    //
-
-    // TODO: shift cr registers input and sends it to command; aka multi line input
-    // WARN: do NOT touch this Input implementation
+    // TODO: shift cr registers input and sends it to command
+    // WARN: do NOT touch the Input implementation...
     // the fns other than write are not to be touched
 
     fn cr_lf(&mut self, h: &mut History, user_input: &mut String) {
@@ -374,8 +430,8 @@ impl Input {
         if self.values.is_empty() || self.cursor == 0 {
             return;
         }
+        self.values.remove(self.cursor - 1);
         if self.cursor > 0 {
-            self.values.remove(self.cursor - 1);
             self.cursor -= 1;
         }
     }
@@ -400,8 +456,13 @@ impl Input {
 
     fn to_end(&mut self) -> usize {
         let diff = self.values.len() - self.cursor;
+<<<<<<< HEAD
         if diff > 0 {
             self.cursor = self.values.len();
+=======
+        if diff == 0 {
+            return 0;
+>>>>>>> origin/main
         }
 
         diff
@@ -547,6 +608,10 @@ impl History {
         h
     }
 
+    // BUG: when input string is an empty value and history is visited
+    // the temp logic breaks
+    // FIXED using option<string> instead of string for temp
+
     fn prev(&mut self, value: &mut Vec<char>) -> bool {
         if self.cursor == 0 {
             return false;
@@ -619,6 +684,15 @@ impl History {
             .unwrap();
     }
 }
+// input:
+// starts empty,
+// only writing is possible: value.push(char)
+// that unlocks:
+// movement to the right/left
+// inserting char at any position inside input value
+// backspace erasure of any position inside input value char
+
+// TODO: program prompt
 
 #[cfg(test)]
 mod test_input {
@@ -627,7 +701,7 @@ mod test_input {
 
     #[test]
     fn test_put_char() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         let mut idx = 0;
         ['p', 'i', 'k', 'a'].into_iter().for_each(|c| {
@@ -641,7 +715,7 @@ mod test_input {
 
     #[test]
     fn test_backspace() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         let input = "pikatchino";
         input.chars().into_iter().for_each(|c| i.put_char(c));
@@ -653,7 +727,7 @@ mod test_input {
 
     #[test]
     fn test_to_end() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikatchaa".chars().into_iter().for_each(|c| i.put_char(c));
         // cursor is by default at end, but we still move it to end
@@ -677,7 +751,7 @@ mod test_input {
 
     #[test]
     fn test_to_home() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikatchuu".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -687,7 +761,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_right() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_the_left();
@@ -699,7 +773,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_left() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -712,7 +786,7 @@ mod test_input {
 
     #[test]
     fn test_cr_lf() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
         let mut h = History::new();
         let mut user_input = String::new();
 
@@ -730,7 +804,7 @@ mod test_input {
 
     #[test]
     fn test_clear_line() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
 
@@ -743,7 +817,7 @@ mod test_input {
 
     #[test]
     fn test_clear_right() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikatchiatto"
             .chars()
@@ -759,7 +833,7 @@ mod test_input {
 
     #[test]
     fn test_clear_left() {
-        let mut i = Input::new("");
+        let mut i = Input::new();
 
         "pikatchiatto"
             .chars()
