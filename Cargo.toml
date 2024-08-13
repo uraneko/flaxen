@@ -14,8 +14,13 @@ documentation = "https://docs.rs/ragout"
 [dependencies]
 crossterm = "0.27.0"
 
+ragout-macro-input = { path = "../ragout-macro-input" }
+
 [[example]]
 name = "default"
 path = "examples/default.rs"
 
+[[example]]
+name = "macro"
+path = "examples/macro.rs"
 
