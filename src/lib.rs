@@ -49,11 +49,20 @@ enum Command {
     None,
 }
 
-pub fn init(prompt: &str) -> (std::io::StdoutLock<'static>, Input, History, String) {
+pub fn init(
+    prompt: &str,
+    alt_screen: bool,
+) -> (std::io::StdoutLock<'static>, Input, History, String) {
     _ = enable_raw_mode();
 
     let mut sol = std::io::stdout().lock();
-    let i = Input::new(prompt);
+
+    if alt_screen {
+        _ = sol.write(b"\x1b[?1049h");
+        _ = sol.write(b"\x1b[1;1f");
+    }
+
+    let i = Input::new(prompt, alt_screen);
     i.write_prompt(&mut sol);
     _ = sol.flush();
 
@@ -76,7 +85,12 @@ impl Command {
     fn execute(&self, i: &mut Input, h: &mut History, sol: &mut StdoutLock<'_>, ui: &mut String) {
         match self {
             Command::InputAction(ia) => i.write(h, ia, sol, ui),
-            Command::Exit(code) => Command::exit(*code),
+            Command::Exit(code) => {
+                if i.alt_screen {
+                    _ = sol.write(b"\x1b[?1049l");
+                }
+                Command::exit(*code)
+            }
             // Command::Script => Command::script(&h, &ui),
             Command::None => (),
         }
@@ -190,10 +204,11 @@ pub struct Input {
     #[cfg(debug_assertions)]
     debug_log: std::fs::File,
     prompt: String,
+    alt_screen: bool,
 }
 
 impl Input {
-    fn new(prompt: &str) -> Self {
+    fn new(prompt: &str, alt_screen: bool) -> Self {
         let mut i = Self {
             #[cfg(debug_assertions)]
             debug_log: std::fs::File::create("resources/logs/terminal/input").unwrap_or_else(
@@ -205,6 +220,7 @@ impl Input {
             values: Vec::new(),
             cursor: 0,
             prompt: prompt.to_owned(),
+            alt_screen,
         };
         #[cfg(debug_assertions)]
         i.log(&InputAction::New);
