@@ -1,7 +1,7 @@
 //! # ragout
 use std::collections::HashMap;
 use std::fs::read_to_string;
-use std::io::{stdin, stdout, Read, Stdin, StdoutLock, Write};
+use std::io::{StdoutLock, Write};
 
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
@@ -646,12 +646,11 @@ impl History {
 
 #[cfg(test)]
 mod test_input {
-    use super::{init, run, History, Input};
-    use std::io::Write;
+    use super::{History, Input};
 
     #[test]
     fn test_put_char() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         let mut idx = 0;
         ['p', 'i', 'k', 'a'].into_iter().for_each(|c| {
@@ -665,7 +664,7 @@ mod test_input {
 
     #[test]
     fn test_backspace() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         let input = "pikatchino";
         input.chars().into_iter().for_each(|c| i.put_char(c));
@@ -677,7 +676,7 @@ mod test_input {
 
     #[test]
     fn test_to_end() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikatchaa".chars().into_iter().for_each(|c| i.put_char(c));
         // cursor is by default at end, but we still move it to end
@@ -701,7 +700,7 @@ mod test_input {
 
     #[test]
     fn test_to_home() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikatchuu".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -711,7 +710,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_right() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_the_left();
@@ -723,7 +722,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_left() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -736,7 +735,7 @@ mod test_input {
 
     #[test]
     fn test_cr_lf() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
         let mut h = History::new();
         let mut user_input = String::new();
 
@@ -754,7 +753,7 @@ mod test_input {
 
     #[test]
     fn test_clear_line() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
 
@@ -767,7 +766,7 @@ mod test_input {
 
     #[test]
     fn test_clear_right() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikatchiatto"
             .chars()
@@ -783,7 +782,7 @@ mod test_input {
 
     #[test]
     fn test_clear_left() {
-        let mut i = Input::new("");
+        let mut i = Input::new("testing input> ", false);
 
         "pikatchiatto"
             .chars()
@@ -825,6 +824,19 @@ impl Input {
             _ = sol.write(b"\x1b[C");
         }
     }
+
+    // fn toggle_alt_screen(&mut self, sol: &mut StdoutLock) {
+    //     match self.alt_screen {
+    //         true => {
+    //             _ = sol.write(b"\x1b[?1049l");
+    //         }
+    //         false => {
+    //             _ = sol.write(b"\x1b[?1049h");
+    //         }
+    //     }
+    //
+    //     self.alt_screen = !self.alt_screen;
+    // }
 }
 
 // #[cfg(test)]
