@@ -96,7 +96,7 @@ impl Command {
             .fold(String::new(), |acc, x| acc + &x + "\r\n");
 
         std::fs::write(
-            "resources/frieren/scripts/".to_string() + name + ".txt",
+            "resources/app/scripts/".to_string() + name + ".txt",
             script.into_bytes(),
         )
         .unwrap()
@@ -164,17 +164,16 @@ fn kbd_event(key_event: KeyEvent) -> Command {
             Command::InputAction(InputAction::MoveLeftJump)
         }
 
+        KeyCode::Right if key_event.modifiers == KeyModifiers::from_bits(0x6).unwrap() => {
+            Command::InputAction(InputAction::ClearRight)
+        }
+
+        KeyCode::Left if key_event.modifiers == KeyModifiers::from_bits(0x6).unwrap() => {
+            Command::InputAction(InputAction::ClearLeft)
+        }
+
         KeyCode::Char(c) => match c {
             'c' if key_event.modifiers == KeyModifiers::from_bits(0x2).unwrap() => Command::Exit(0),
-            // 'h' if key_event.modifiers == KeyModifiers::from_bits(0x2).unwrap() => {
-            //     Command::HistoryAction(HistoryAction::List)
-            // }
-            'r' if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
-                Command::InputAction(InputAction::ClearRight)
-            }
-            'l' if key_event.modifiers == KeyModifiers::from_bits(0x4).unwrap() => {
-                Command::InputAction(InputAction::ClearLeft)
-            }
             c if key_event.modifiers == KeyModifiers::from_bits(0x0).unwrap() => {
                 Command::InputAction(InputAction::PutChar(c))
             }
