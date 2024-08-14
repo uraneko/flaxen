@@ -1,3 +1,6 @@
+// execute this shell command to run:
+// $ cargo run --example default
+
 use ragout::{init, run};
 
 fn main() {

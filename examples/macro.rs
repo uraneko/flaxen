@@ -1,6 +1,8 @@
-use ragout::ragout_input;
+// execute this shell command to run:
+// $ cargo run --example macro --no-default-features --features custom_events
+use ragout::ragout_custom_events;
 
-ragout_input! {
+ragout_custom_events! {
     KeyCode::F(5), 0x0, TestF(u8),
     || {
         let date = std::process::Command::new("date")
