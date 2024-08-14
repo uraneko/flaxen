@@ -790,15 +790,8 @@ impl Input {
     fn write_prompt(&self, sol: &mut StdoutLock) {
         _ = sol.write(b"\x1b[2K");
         _ = sol.write(&[13]);
-        _ = sol.write(
-            &self
-                .prompt
-                .chars()
-                .into_iter()
-                .map(|c| c as u8)
-                .collect::<Vec<u8>>(),
-        );
-        _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
+        _ = sol.write(&str_to_bytes(&self.prompt));
+        _ = sol.write(&str_to_bytes(&self.as_str(&mut "".to_string())));
         _ = sol.flush();
     }
 
@@ -821,6 +814,27 @@ impl Input {
     //
     //     self.alt_screen = !self.alt_screen;
     // }
+    fn as_str<'a>(&self, s: &'a mut String) -> &'a str {
+        *s = self.values.iter().map(|c| c).collect::<String>();
+
+        s.as_str()
+    }
+}
+
+fn encode_char(c: char, bytes: &mut Vec<u8>) {
+    match c.is_ascii() {
+        false => bytes.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes()),
+        true => bytes.push(c as u8),
+    }
+}
+
+fn str_to_bytes(s: &str) -> Vec<u8> {
+    let mut bytes = Vec::new();
+    s.chars()
+        .into_iter()
+        .for_each(|c| encode_char(c, &mut bytes));
+
+    bytes
 }
 
 // #[cfg(test)]
