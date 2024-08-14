@@ -27,7 +27,6 @@ pub fn init(
 
     let i = Input::new(prompt, alt_screen);
     i.write_prompt(&mut sol);
-    _ = sol.flush();
 
     (sol, i, History::new(), String::new())
 }
@@ -272,7 +271,7 @@ impl Input {
             InputAction::MoveHome => {
                 if self.to_home() {
                     _ = sol.write(&[13]);
-                    for _ in 0..self.prompt.len() {
+                    for _ in 0..self.prompt.chars().count() + 1 {
                         _ = sol.write(b"\x1b[C");
                     }
                     // OR
@@ -797,7 +796,12 @@ impl Input {
 
     fn sync_cursor(&self, sol: &mut StdoutLock) {
         _ = sol.write(&[13]);
-        for _idx in 0..self.prompt.len() + self.cursor {
+        // BUG: at every first inputted char of an input line, the cursor was moving forward
+        // by the sum of the byte lengths of all non-ascii chars in the prompt
+        // this is because prompt(String).len() was counting the byte lengths of the chars not the
+        // number of the chars
+        // FIX: switch to prompt.chars.count() from prompt.len()
+        for _idx in 0..self.prompt.chars().count() + 1 + self.cursor {
             _ = sol.write(b"\x1b[C");
         }
     }
