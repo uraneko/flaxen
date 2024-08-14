@@ -337,6 +337,7 @@ impl Input {
         i
     }
 
+    // NOTE: should input.values not be a byte vec instead of a char vec?
     fn put_char(&mut self, c: char) {
         match self.values.is_empty() {
             true => {
@@ -797,7 +798,7 @@ impl Input {
                 .map(|c| c as u8)
                 .collect::<Vec<u8>>(),
         );
-        // _ = sol.write(b" ");
+        _ = sol.write(&self.values.iter().map(|c| *c as u8).collect::<Vec<u8>>());
         _ = sol.flush();
     }
 
