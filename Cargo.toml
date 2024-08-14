@@ -1,6 +1,6 @@
 [package]
 name = "ragout"
-version = "0.2.1"
+version = "0.3.1"
 edition = "2021"
 description = "Terminal raw mode utilities"
 license = "MIT"
@@ -13,7 +13,7 @@ documentation = "https://docs.rs/ragout"
 
 [dependencies]
 crossterm = "0.27.0"
-ragout_input_macro = { path = "../ragout-input-macro", optional = true }
+ragout_custom_events_macro = { path = "../ragout-custom-events-macro", optional = true }
 
 [[example]]
 name = "default"
@@ -26,4 +26,4 @@ path = "examples/macro.rs"
 [features]
 default = ["lib"]
 lib = []
-custom_events = ["dep:ragout_input_macro"]
+custom_events = ["dep:ragout_custom_events_macro"]
