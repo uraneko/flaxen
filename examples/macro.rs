@@ -1,4 +1,4 @@
-use ragout_input_macro::ragout_input;
+use ragout::ragout_input;
 
 ragout_input! {
     KeyCode::F(5), 0x0, TestF(u8),
@@ -21,7 +21,7 @@ ragout_input! {
     KeyCode::Esc, 0x0, TestPrintScreen,
     || {
         // requires that the grim cli tool (or something similar, replace as needed) is installed
-        let cmd = std::process::Command::new("grim").arg("target/screenshot.png ").output().unwrap();
+        let cmd = std::process::Command::new("grim").arg("target/screenshot.png").output().unwrap();
 
         let inst = std::time::Instant::now();
 
