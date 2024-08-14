@@ -13,8 +13,7 @@ documentation = "https://docs.rs/ragout"
 
 [dependencies]
 crossterm = "0.27.0"
-
-ragout-macro-input = { path = "../ragout-macro-input" }
+ragout_input_macro = { path = "../ragout-input-macro", optional = true }
 
 [[example]]
 name = "default"
@@ -24,3 +23,7 @@ path = "examples/default.rs"
 name = "macro"
 path = "examples/macro.rs"
 
+[features]
+default = ["lib"]
+lib = []
+custom_events = ["dep:ragout_input_macro"]
