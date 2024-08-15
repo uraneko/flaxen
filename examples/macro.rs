@@ -1,5 +1,6 @@
 // execute this shell command to run:
 // $ cargo run --example macro --no-default-features --features custom_events
+
 use ragout::ragout_custom_events;
 
 ragout_custom_events! {
@@ -28,7 +29,7 @@ ragout_custom_events! {
         let inst = std::time::Instant::now();
 
         let temp = self.prompt.drain(..).collect::<String>();
-        self.overwrite_prompt("saved screenshot to target/screenshot.png> ");
+        self.overwrite_prompt("saved screenshot to target/screenshot.png 🐭 ");
         self.write_prompt(sol);
 
         let notify =  std::thread::spawn(move || loop {
@@ -48,7 +49,7 @@ ragout_custom_events! {
 }
 
 fn main() {
-    let (mut sol, mut i, mut h, mut ui) = init("some prompt> ", true);
+    let (mut sol, mut i, mut h, mut ui) = init("some prompt 🐭 ", true);
 
     'main: loop {
         let input = run(&mut i, &mut h, &mut sol, &mut ui);
