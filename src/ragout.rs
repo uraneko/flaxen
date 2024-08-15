@@ -2,10 +2,38 @@
 use std::io::{StdoutLock, Write};
 use std::os::fd::AsRawFd;
 
+///
+/// Enables terminal raw mode and initializes the necessary variables for behaving in the raw mode.
+///
+/// Takes a [`&str`] for the shell prompt (give "" for no prompt) and a bool for the option of running in the terminal alternate screen (give true to run your cli program in alternate screen)
+/// # Errors
+/// Does NOT return errors and never panics
+///
+/// # Example
+///
+/// Basic usage
+///
+/// ```
+/// use ragout::{init, run};
+///
+/// fn main() {
+///     // enter raw mode and initialize necessary variables
+///     // the string literal argument will be the value of the prompt
+///     let (mut sol, mut i, mut h, mut ui) = init("some prompt 🐱 ", true);
+///
+///     'main: loop {
+///         let input = run(&mut i, &mut h, &mut sol, &mut ui);
+///         if !input.is_empty() {
+///             // do some stuff with the user input
+///         }
+///     }
+/// }
+/// ```
 pub use ragout_assistant::init;
 use ragout_assistant::{DebugLog, Writer};
 use ragout_assistant::{History, Input};
 
+// CONTEMPLATE: TODO: Input and History do not have to be public to the user of the lib
 // TODO: get rid of crossterm dependency
 // TODO: render graphics
 
@@ -21,6 +49,33 @@ use ragout_assistant::{History, Input};
 //     h.log(&InputAction::New);
 // }
 
+/// catches the key event, executes the matching Command then returns the user input if any
+///
+/// # Errors
+///
+/// Can not panic! or return Error if crate feature 'lib' is enabled
+/// If crate feature 'custom_events' is enabled, and custom events are provided, this function may panic! if there is an error in those custom events closures
+///
+/// # Example
+///
+/// Basic usage:
+///
+/// ```
+/// use ragout::{init, run};
+///
+/// fn main() {
+///     // enter raw mode and initialize necessary variables
+///     // the string literal argument will be the value of the prompt
+///     let (mut sol, mut i, mut h, mut ui) = init("some prompt 🐱 ", true);
+///
+///     'main: loop {
+///         let input = run(&mut i, &mut h, &mut sol, &mut ui);
+///         if !input.is_empty() {
+///             // do some stuff with the user input
+///         }
+///     }
+/// }
+///
 pub fn run(
     input: &mut Input,
     history: &mut History,
