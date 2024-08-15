@@ -1,6 +1,6 @@
 [package]
 name = "ragout"
-version = "0.31.31"
+version = "0.31.32"
 edition = "2021"
 description = "Terminal raw mode utilities"
 license = "MIT"
