@@ -6,6 +6,4 @@ pub use ragout_custom_events_macro::ragout_custom_events;
 
 #[cfg(feature = "lib")]
 pub mod ragout;
-
-#[cfg(feature = "lib")]
 pub use ragout::*;

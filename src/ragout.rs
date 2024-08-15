@@ -15,10 +15,11 @@ use ragout_assistant::{History, Input};
 
 // move the logs in History::new and Input::new to this fn
 // since they can't stay there due to design limitations
-pub fn log_init(i: &mut Input, h: &mut History) {
-    i.log(&InputAction::New);
-    h.log(&InputAction::New);
-}
+// #[cfg(any(debug_assertions, feature = "debug_logs"))]
+// pub fn log_init(i: &mut Input, h: &mut History) {
+//     i.log(&InputAction::New);
+//     h.log(&InputAction::New);
+// }
 
 pub fn run(
     input: &mut Input,
@@ -39,7 +40,7 @@ enum InputAction {
     CRLF,
     MoveRight,
     MoveLeft,
-    New,
+    // New,
     MoveEnd,
     MoveRightJump,
     MoveLeftJump,
@@ -182,7 +183,7 @@ impl Writer<InputAction> for Input {
         ui: &mut String,
     ) {
         match ia {
-            InputAction::New => (),
+            // InputAction::New => (),
             InputAction::MoveRight => {
                 if self.to_the_right() {
                     _ = sol.write(b"\x1b[C");
