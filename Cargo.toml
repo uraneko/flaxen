@@ -17,8 +17,8 @@ ragout_custom_events_macro = { version = "0.1.0", optional = true }
 ragout_assistant = "0.1.0"
 
 [[example]]
-name = "default"
-path = "examples/default.rs"
+name = "basic"
+path = "examples/basic.rs"
 
 [[example]]
 name = "macro"

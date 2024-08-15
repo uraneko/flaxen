@@ -1,5 +1,5 @@
 // execute this shell command to run:
-// $ cargo run --example default
+// $ cargo run --example basic
 
 use ragout::{init, run};
 
