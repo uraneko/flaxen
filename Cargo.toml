@@ -14,6 +14,7 @@ documentation = "https://docs.rs/ragout"
 [dependencies]
 crossterm = "0.27.0"
 ragout_custom_events_macro = { path = "../ragout-custom-events-macro", optional = true }
+ragout_assistant = { path = "../ragout-assistant" }
 
 [[example]]
 name = "default"
@@ -27,3 +28,5 @@ path = "examples/macro.rs"
 default = ["lib"]
 lib = []
 custom_events = ["dep:ragout_custom_events_macro"]
+# the debug_logs feature would be enabled only when the debug_logs feature in ragout_assistant is enabled
+debug_logs = ["ragout_assistant/debug_logs"]
