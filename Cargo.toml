@@ -21,12 +21,17 @@ name = "basic"
 path = "examples/basic.rs"
 
 [[example]]
+name = "styled"
+path = "examples/styled.rs"
+
+[[example]]
 name = "macro"
 path = "examples/macro.rs"
 
 [features]
-default = ["lib"]
+default = ["lib", "styled"]
 lib = []
+styled = []
 custom_events = ["dep:ragout_custom_events_macro"]
 # the debug_logs feature would be enabled only when the debug_logs feature in ragout_assistant is enabled
 debug_logs = ["ragout_assistant/debug_logs"]
