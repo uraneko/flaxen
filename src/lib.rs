@@ -8,3 +8,8 @@ pub use ragout_custom_events_macro::ragout_custom_events;
 pub mod ragout;
 #[cfg(feature = "lib")]
 pub use ragout::*;
+
+#[cfg(feature = "styled")]
+pub mod styled;
+#[cfg(feature = "styled")]
+pub use styled::*;
