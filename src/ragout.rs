@@ -287,8 +287,6 @@ impl Writer<InputAction> for Input {
 
             InputAction::PutChar(c) => {
                 self.put_char(*c);
-                // graphic rendition
-                // _ = sol.write(b"\x1b[31;1;4m");
                 self.write_prompt(sol);
                 self.sync_cursor(sol);
             }
