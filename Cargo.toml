@@ -20,14 +20,6 @@ ragout_assistant = "0.1.0"
 name = "basic"
 path = "examples/basic.rs"
 
-[[example]]
-name = "styled"
-path = "examples/styled.rs"
-
-[[example]]
-name = "macro"
-path = "examples/macro.rs"
-
 [features]
 default = ["lib", "styled"]
 lib = []
