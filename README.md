@@ -6,7 +6,7 @@
 <!---->
 <!-- ![GITHUB](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
 <!---->
-![BUILD](https://github.com/uraneko/ragout/actions/workflows/rust.yml/build.svg?branch=BRANCH-NAME&event=push)
+![BUILD](https://github.com/uraneko/ragout/actions/workflows/rust.yml/build.svg?branch=shin_sekai&event=push)
 
 ragout is a library crate offering shell functionalities inside the terminal raw mode.
 It aims to be lightweight and tries not to get in the way by offering a limited api in a small sized crate with minimal dependencies.
