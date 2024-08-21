@@ -1,6 +1,17 @@
 ## ragout - terminal Raw Mode Input Handler
 
 ragout is a library crate offering shell functionalities inside the terminal raw mode.
+It aims to be lightweight and tries not to get in the way by offering a limited api in a small sized crate with minimal dependencies.
+
+This lib is for projects that want a little more functionality than the typical cli tool has, but don't want to use something fully equipped like crossterm.
+
+## Support 
+Supports only Linux, plans for supporting Windows and maybe Apple are there, but are currently not a priority.
+
+**## Notice**
+This crate is currently undergoing heavy refactoring. 
+
+<br/>
 
 ## Features
 - **input movements**
@@ -19,13 +30,10 @@ ragout is a library crate offering shell functionalities inside the terminal raw
 ## Examples
 
 ### Basic usage
-<br/><br/>
 
 ```sh
 $ cargo run --example basic
 ```
-
-<br/><br/>
 
 ```rust
 use ragout::{init, run};
@@ -47,13 +55,10 @@ fn main() {
 <br/><br/>
 
 ### Using the macro 
-<br/><br/>
 
 ```sh
 $ cargo run --example macro --no-default-features --features custom_events
 ```
-
-<br/><br/>
 
 ```rust
 use ragout::ragout_custom_events;
@@ -124,12 +129,14 @@ Licensed under the <a href="LICENSE">MIT license</a>.
 
 ## Versioning 
 Follows the [SemVer Spec](https://semver.org/).
-Until the time arrives for the version to reach 1.0.0, the repo will adhere to the following rules for versions x.y.z:
+~~ Until the time arrives for the version to reach 1.0.0, the repo will adhere to the following rules for versions x.y.z:
 - x is constant at 0.
 - aside from a number of exceptions, changes incrementing y are accompanied by a milestone creation,
 i.e., the first pr of a new milestone increments y.
 - everything else increments z. Consecutive small changes may be combined into a single incrementation of z.
-- the above three rules are not always respected.
+- the above three rules are not always respected. ~~
+
+Until the crate hits version 1.0.0, there are no rules
 
 <br/><br/>
 
