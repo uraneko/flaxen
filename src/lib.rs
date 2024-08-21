@@ -5,13 +5,9 @@ pub mod raw_mode;
 pub mod styled;
 pub mod termbuf;
 
-pub mod shin_sekai;
-
 pub use kbd_decode::*;
 pub(crate) use raw_mode::*;
 use termbuf::*;
-
-use shin_sekai::*;
 
 #[derive(Debug, Default)]
 struct Point {
