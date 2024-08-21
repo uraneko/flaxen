@@ -9,7 +9,7 @@ extern "C" {
 }
 
 // from /usr/include/asm-generic/termbits.h
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 #[repr(C)]
 pub struct termios {
     c_iflag: tcflag_t,
@@ -85,9 +85,9 @@ const PARENB: u32 = 400;
 /// read the source code to know more about what gets disabled
 pub fn raw_mode() -> termios {
     unsafe {
-        let mut original = std::mem::zeroed();
-        let mut raw: termios = std::mem::zeroed();
+        let mut original: termios = std::mem::zeroed();
         let _res = tcgetattr(STDIN_FILENO, &mut original);
+        let mut raw = original.clone();
         raw.c_lflag &= !(ISIG | ICANON | ECHO | IEXTEN);
         raw.c_iflag &= !(BRKINT | INPCK | ISTRIP | INLCR | ICRNL | IXON);
         raw.c_oflag &= !OPOST;
