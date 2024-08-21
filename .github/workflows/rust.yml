@@ -1,4 +1,4 @@
-name: ragout-ci
+name: BUILD
 
 on: 
   push: 
