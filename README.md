@@ -1,5 +1,13 @@
 ## ragout - terminal Raw Mode Input Handler
 
+<!-- ![CRATES.IO](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
+<!---->
+<!-- ![DOCS.RS](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
+<!---->
+<!-- ![GITHUB](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
+<!---->
+![BUILD](https://github.com/uraneko/ragout/actions/workflows/rust.yml/build.svg?branch=shin_sekai&event=push)
+
 ragout is a library crate offering shell functionalities inside the terminal raw mode.
 It aims to be lightweight and tries not to get in the way by offering a limited api in a small sized crate with minimal dependencies.
 
@@ -8,8 +16,8 @@ This lib is for projects that want a little more functionality than the typical 
 ## Support 
 Supports only Linux, plans for supporting Windows and maybe Apple are there, but are currently not a priority.
 
-**## Notice**
-This crate is currently undergoing heavy refactoring. 
+[!NOTE]
+This crate is currently undergoing heavy refactoring in the shin_sekai branch.
 
 <br/>
 
