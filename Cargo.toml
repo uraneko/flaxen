@@ -20,6 +20,14 @@ ragout_assistant = "0.1.0"
 name = "basic"
 path = "examples/basic.rs"
 
+[[example]]
+name = "ws"
+path = "examples/ws.rs"
+
+[[example]]
+name = "raw_mode"
+path = "examples/raw_mode.rs"
+
 [features]
 default = ["lib", "styled"]
 lib = []
