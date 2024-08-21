@@ -15,7 +15,7 @@ extern "C" {
 }
 
 // from /usr/include/asm-generic/termios.h
-#[derive(Debug)]
+#[derive(Debug, Default)]
 #[repr(C)]
 pub(crate) struct winsize {
     ws_row: u16,
@@ -32,6 +32,23 @@ const STDERR_FILENO: i32 = 2;
 // from /usr/include/asm-generic/ioctl.h
 const TIOCGWINSZ: u64 = 0x5413;
 const TIOCSWINSZ: u64 = 0x5414;
+
+impl winsize {
+    pub(crate) fn from_ioctl() -> Self {
+        let mut ws = Default::default();
+        _ = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut ws) };
+
+        ws
+    }
+
+    pub(crate) fn cols(&self) -> u16 {
+        self.ws_col
+    }
+
+    pub(crate) fn rows(&self) -> u16 {
+        self.ws_row
+    }
+}
 
 fn main() {
     unsafe {
