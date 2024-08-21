@@ -1,6 +1,17 @@
-#![cfg(feature = "styled")]
+// NOTE: styles would be just styled struct and one string
+// when a styled needs to be applied, it takes the string and mutates it to its values then it gets
+// sent over to the event queue to be applied to text
+
 use std::io::StdoutLock;
 use std::io::Write;
+
+// NOTE: should create a stylegraph that takes styles
+// styles are applied according to stylegraphs
+// stylegraphs define rules for which styles apply to which text
+// the rules are based on text tokens' attributes
+// whether a token includes or excludes (starts, ends or contains) a certain pattern
+// the position of the token in the text
+// or can take individual chars instead of whole tokens
 
 #[derive(Default)]
 pub struct Styled {
@@ -233,3 +244,11 @@ impl Stylize for String {
 /// 128 means faint
 /// the greatest effects config value possible is 255
 const style_configuration: u32 = 0;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_styled() {}
+}
