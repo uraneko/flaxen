@@ -21,6 +21,10 @@ impl Point {
     }
 }
 
+// TODO: remove Terminal struct altogether
+// buffer is a winsize method
+// cursor, raw and sol can be globals
+// also, init commissioner
 #[derive(Debug, Default)]
 pub struct Terminal {
     buffer: Vec<u16>,
@@ -58,6 +62,10 @@ impl Terminal {
             _ = self.sol.as_mut().unwrap().write(&esc_seq.as_bytes());
         }
     }
+
+    pub fn raw(&self) -> &termios {
+        &self.raw
+    }
 }
 
 use std::io::StdoutLock;
@@ -65,14 +73,10 @@ use std::io::Write;
 
 impl Drop for Terminal {
     fn drop(&mut self) {
-        print!("cleaning up... ",);
-
+        let sol = self.sol.as_mut().unwrap();
         cooked_mode(&self.raw);
-        if self.sol.is_some() {
-            _ = self.sol.as_mut().unwrap().write(b"\x1b[?1049l");
-        }
-
-        print!("  done");
+        _ = sol.write(b"\x1b[?1049l");
+        _ = sol.flush();
     }
 }
 

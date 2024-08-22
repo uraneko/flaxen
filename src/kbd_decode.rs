@@ -597,3 +597,22 @@ pub fn kbd_read() {
         }
     }
 }
+
+use std::io::BufRead;
+use std::io::BufReader;
+use std::io::StdinLock;
+
+pub fn read<'a, 'b>(reader: &'b mut StdinLock, buffer: &'b mut Vec<u8>) -> &'b mut Vec<u8>
+where
+    'b: 'a,
+{
+    buffer.clear();
+
+    let buf = reader.fill_buf().unwrap();
+    buffer.extend_from_slice(buf);
+
+    let n = buf.len();
+    reader.consume(n);
+
+    buffer
+}
