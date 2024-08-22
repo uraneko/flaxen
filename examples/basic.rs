@@ -1,14 +1,7 @@
-use ragout::kbd_decode::read;
 use ragout::raw_mode::{cooked_mode, raw_mode};
-use ragout::{kbd_read, Terminal};
+use ragout::{decode_ki, read_ki};
 
-use std::io::BufRead;
-use std::io::BufReader;
-use std::io::Read;
-use std::io::StdinLock;
 use std::io::Write;
-use std::os::fd::AsRawFd;
-use std::os::unix::io::FromRawFd;
 
 fn main() {
     // kbd_read()
@@ -16,16 +9,18 @@ fn main() {
     // initialization
     let ts = raw_mode();
 
-    let mut sol = std::io::stdout().lock();
+    let mut writer = std::io::stdout().lock();
+    _ = writer.write(b"\x1b[?1049h\r\n\x1b[0;0f");
+    _ = writer.flush();
 
-    let mut sil = std::io::stdin().lock();
+    let mut reader = std::io::stdin().lock();
 
     let mut i = vec![];
 
     loop {
-        read(&mut sil, &mut i);
-        print!("{:?}\r\n", &i);
-        _ = sol.flush();
+        read_ki(&mut reader, &mut i);
+        print!("{:?}\r\n", decode_ki(&i));
+        _ = writer.flush();
 
         if i[0] == 3 && i.len() == 1 {
             break;
@@ -33,4 +28,5 @@ fn main() {
     }
 
     cooked_mode(&ts);
+    _ = writer.write(b"\x1b[?1049l");
 }

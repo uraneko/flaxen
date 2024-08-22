@@ -134,9 +134,10 @@ mod tests {
 // TODO:
 // 1 => raw mode + alternate screen + winsize + term buffer of NUL... done
 // 2 => kbd read + decode utf8... wip
-// 3 => styled... done... needs modifications
+// 3 => styled... wip... needs modifications
 // 4 => event queue ... wip
 // 5 containers... stalled
 // 5a => inner input logic
 // 5b => non editable text container logic (including prompt)
 // 5c => popup container logic
+// 6 => panes support

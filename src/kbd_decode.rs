@@ -196,7 +196,7 @@ impl std::fmt::Debug for Modifiers {
                 10 => "CONTROL_SHIFT",
                 11 => "CONTROL_SUPER_SHIFT",
                 12 => "SHIFT_ALT",
-                13 => "SHIFT_ALT_SUPER",
+                13 => "SUPER_SHIFT_ALT",
                 14 => "CONTROL_SHIFT_ALT",
                 15 => "CONTROL_SHIFT_ALT_SUPER",
 
@@ -238,7 +238,7 @@ impl Modifiers {
     // 6 bytes escape sequence modifiers identification
     // the modifier byte is bytes[4] (the 5th byte)
     // in the inputted escape sequence
-    fn from_raw6(byte: u8) -> Self {
+    fn from_raw67(byte: u8) -> Self {
         Self(match byte {
             50 => SHIFT,
             51 => ALT,
@@ -256,11 +256,22 @@ impl Modifiers {
     }
 
     // 7 bytes escape sequence modifiers identification
-    fn from_raw7(byte: u8) {}
+    fn from_super7(byte: u8) -> Self {
+        Self(match byte {
+            48 => 9,
+            49 => 5,
+            50 => 13,
+            51 => 3,
+            52 => 11,
+            53 => 7,
+            54 => 15,
+            val => unreachable!("all mods handled, who are you? {}", val),
+        })
+    }
 }
 
 #[derive(Debug)]
-struct KbdEvent {
+pub struct KbdEvent {
     char: Char,
     modifiers: Modifiers,
 }
@@ -397,11 +408,12 @@ mod utf8_decoder {
     // not utf8
     // 6 bytes < 7 means that there is not a modifiers combination of SUPER + mod(s)
     fn decode_6_bytes(bytes: &[u8], ke: &mut KbdEvent) {
+        // escape sequence
         assert!(bytes[0] == 27 && bytes[1] == 91);
         assert!(bytes[3] == 59);
         assert!([49, 51, 53, 54].contains(&bytes[2]));
         if bytes[2] == 49 {
-            ke.modifiers = Modifiers::from_raw6(bytes[4]);
+            ke.modifiers = Modifiers::from_raw67(bytes[4]);
             ke.char = if [65, 66, 67, 68].contains(&bytes[5]) {
                 Char::from_arrow_key(bytes[5])
             } else {
@@ -409,8 +421,8 @@ mod utf8_decoder {
                 Char::from_fn_key3(bytes[5])
             }
         } else {
-            assert!([51, 53, 54].contains(&bytes[2]));
-            ke.modifiers = Modifiers::from_raw6(bytes[4]);
+            assert!([51, 53, 54, 49].contains(&bytes[2]));
+            ke.modifiers = Modifiers::from_raw67(bytes[4]);
             ke.char = if bytes[2] == 49 {
                 match bytes[5] {
                     70 => Char::CC(CC::End),
@@ -426,17 +438,54 @@ mod utf8_decoder {
 
     fn decode_7_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 7);
+        // escape sequence
+        assert!(bytes[0] == 27 && bytes[1] == 91);
+        match bytes[6] == 126 && bytes[4] == 59 {
+            // fn key + some ctrl, shift, alt mods combination
+            true => {
+                ke.modifiers = Modifiers::from_raw67(bytes[5]);
+                ke.char = Char::from_fn_key5(bytes[2], bytes[3]);
+            }
+            // arrow keys/extra cc + some super included mods combination
+            false => {
+                assert_eq!(bytes[4], 49);
+                ke.modifiers = Modifiers::from_super7(bytes[5]);
+                match bytes[2] {
+                    49 if [65, 66, 67, 68].contains(&bytes[6]) => {
+                        ke.char = Char::from_arrow_key(bytes[6])
+                    }
+                    49 if bytes[6] == 70 => ke.char = Char::CC(CC::End),
+                    49 if bytes[6] == 72 => ke.char = Char::CC(CC::Home),
+                    51 | 53 | 54 if bytes[6] == 126 => ke.char = Char::from_cc_extra(bytes[2]),
+                    // TODO: FIX: handle f1 -> 4 + super + mods
+                    49 if [80, 81, 82, 83].contains(&bytes[6]) => {
+                        ke.char = Char::from_fn_key3(bytes[6])
+                    }
+                    _ => unreachable!("key combination: {:?} is unhandled", bytes),
+                }
+            }
+        }
     }
 
     fn decode_8_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 8);
+        assert!({
+            bytes[0] == 27
+                && bytes[1] == 91
+                && [49, 50].contains(&bytes[2])
+                && bytes[4] == 59
+                && bytes[5] == 49
+                && bytes[7] == 126
+        });
+        ke.modifiers = Modifiers::from_super7(bytes[6]);
+        ke.char = Char::from_fn_key5(bytes[2], bytes[3]);
     }
 
     // WARN: design flow
     // should actually get whole strings of bytes and check bytes to correctly decode them into
     // utf8
 
-    pub(super) fn decode(bytes: &[u8]) -> KbdEvent {
+    pub fn decode_ki(bytes: &[u8]) -> KbdEvent {
         let mut ke: KbdEvent = Default::default();
         match bytes.len() {
             1 => decode_1_byte(bytes[0], &mut ke),
@@ -547,6 +596,8 @@ mod utf8_decoder {
 
 use utf8_decoder::*;
 
+pub use utf8_decoder::decode_ki;
+
 pub fn kbd_read() {
     let mut buf: [u8; 8] = [0; 8];
     let mut sol = std::io::stdout().lock();
@@ -588,7 +639,7 @@ pub fn kbd_read() {
                 "raw_buffer: {:?}\r\nbytes: {:?}\r\ndecoded: {:?}\r\n",
                 buf,
                 filtered,
-                decode(&filtered) // decode_utf8_string(&input_queue) // input_queue
+                decode_ki(&filtered) // decode_utf8_string(&input_queue) // input_queue
             );
 
             _ = sol.flush();
@@ -599,13 +650,9 @@ pub fn kbd_read() {
 }
 
 use std::io::BufRead;
-use std::io::BufReader;
 use std::io::StdinLock;
 
-pub fn read<'a, 'b>(reader: &'b mut StdinLock, buffer: &'b mut Vec<u8>) -> &'b mut Vec<u8>
-where
-    'b: 'a,
-{
+pub fn read_ki<'a>(reader: &'a mut StdinLock, buffer: &'a mut Vec<u8>) -> &'a mut Vec<u8> {
     buffer.clear();
 
     let buf = reader.fill_buf().unwrap();
