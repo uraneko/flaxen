@@ -1,5 +1,6 @@
 pub mod container;
 pub mod events;
+pub mod input;
 pub mod kbd_decode;
 pub mod raw_mode;
 pub mod styled;
@@ -9,27 +10,33 @@ pub use kbd_decode::*;
 pub(crate) use raw_mode::*;
 use termbuf::*;
 
-#[derive(Debug, Default)]
-struct Point {
-    x: u16,
-    y: u16,
-}
-
-impl Point {
-    fn new(x: u16, y: u16) -> Self {
-        Self { x, y }
-    }
-}
+use std::ops::Range;
 
 // TODO: remove Terminal struct altogether
 // buffer is a winsize method
 // cursor, raw and sol can be globals
 // also, init commissioner
+
+#[derive(Debug)]
+struct BufStore {
+    cache: HashMap<Id, Memory>,
+    buf: Vec<u8>,
+    tree: BTreeMap<Id, Container>,
+}
+
+#[derive(Debug)]
+struct Memory {}
+#[derive(Debug)]
+struct Id {}
+#[derive(Debug)]
+struct Container {}
+use std::collections::{BTreeMap, HashMap};
+
 #[derive(Debug, Default)]
 pub struct Terminal {
     buffer: Vec<u16>,
     winsize: winsize,
-    cursor: Point,
+    cursor: Range<usize>,
     raw: termios,
     // esc_seq: String,
     sol: Option<StdoutLock<'static>>,
@@ -84,7 +91,7 @@ struct ScreenShot<'a> {
     buffer: &'a [u16],
     rows: u16,
     cols: u16,
-    origin: Point,
+    origin: Range<usize>,
 }
 
 impl Terminal {
@@ -113,7 +120,7 @@ impl Terminal {
             buffer: &self.buffer,
             rows: self.winsize.rows(),
             cols: self.winsize.cols(),
-            origin: Point::new(0, 0),
+            origin: Range::default(),
         }
     }
 }

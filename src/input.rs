@@ -1,7 +1,5 @@
 use std::io::{StdoutLock, Write};
 
-use crossterm::terminal::enable_raw_mode;
-
 // raw mode:
 // you need to create exetrns for C functions from unistd.h
 // Specifically to enable raw mode you need tcgetattr and tcsetattr functions.
@@ -37,7 +35,7 @@ pub fn init(
     prompt: &str,
     alt_screen: bool,
 ) -> (std::io::StdoutLock<'static>, Input, History, String) {
-    _ = enable_raw_mode();
+    // _ = enable_raw_mode();
 
     let mut sol = std::io::stdout().lock();
 

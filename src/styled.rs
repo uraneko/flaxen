@@ -1,5 +1,4 @@
-// NOTE: styles would be just styled struct and one string
-// when a styled needs to be applied, it takes the string and mutates it to its values then it gets
+// when a style needs to be applied, it takes the string and mutates it to its values then it gets
 // sent over to the event queue to be applied to text
 
 use std::io::StdoutLock;
@@ -13,8 +12,11 @@ use std::io::Write;
 // the position of the token in the text
 // or can take individual chars instead of whole tokens
 
+type StyleId = u8;
+
 #[derive(Default)]
-pub struct Styled {
+pub struct Style {
+    id: StyleId,
     effects: u8,
     text: Option<Color>,
     background: Option<Color>,
@@ -32,14 +34,14 @@ impl Color {
         Self { r, g, b }
     }
 
-    fn text(&self, styled: &mut String) {
+    fn text(&self, style: &mut String) {
         let color = format!("38;2;{};{};{};", self.r, self.g, self.b);
-        styled.push_str(&color)
+        style.push_str(&color)
     }
 
-    fn background(&self, styled: &mut String) {
+    fn background(&self, style: &mut String) {
         let color = format!("48;2;{};{};{};", self.r, self.g, self.b);
-        styled.push_str(&color)
+        style.push_str(&color)
     }
 
     // fn red(&mut self, r: u8) {
@@ -55,7 +57,7 @@ impl Color {
     // }
 }
 
-impl Styled {
+impl Style {
     const RESET: u8 = 0; // 0
     const BOLD: u8 = 1; // 1
     const FAINT: u8 = 2; // 2
@@ -66,8 +68,9 @@ impl Styled {
     const CONCEAL: u8 = 64; // 8
     const DBL_UNDERLINE: u8 = 128; // 21
 
-    pub fn new() -> Self {
+    pub fn new(name: &str) -> Self {
         Self {
+            id: 0,
             background: None,
             text: None,
             effects: 0,
@@ -75,66 +78,66 @@ impl Styled {
     }
 
     pub fn bold(&mut self) {
-        if (self.effects & Styled::BOLD).ne(&0) {
-            self.effects &= !Styled::BOLD
+        if (self.effects & Style::BOLD).ne(&0) {
+            self.effects &= !Style::BOLD
         } else {
-            self.effects |= Styled::BOLD
+            self.effects |= Style::BOLD
         }
     }
 
     pub fn underline(&mut self) {
-        if (self.effects & Styled::UNDERLINE).ne(&0) {
-            self.effects &= !Styled::UNDERLINE
+        if (self.effects & Style::UNDERLINE).ne(&0) {
+            self.effects &= !Style::UNDERLINE
         } else {
-            self.effects |= Styled::UNDERLINE
+            self.effects |= Style::UNDERLINE
         }
     }
 
     pub fn double_underline(&mut self) {
-        if (self.effects & Styled::DBL_UNDERLINE).ne(&0) {
-            self.effects &= !Styled::DBL_UNDERLINE
+        if (self.effects & Style::DBL_UNDERLINE).ne(&0) {
+            self.effects &= !Style::DBL_UNDERLINE
         } else {
-            self.effects |= Styled::DBL_UNDERLINE
+            self.effects |= Style::DBL_UNDERLINE
         }
     }
 
     pub fn italic(&mut self) {
-        if (self.effects & Styled::ITALIC).ne(&0) {
-            self.effects &= !Styled::ITALIC
+        if (self.effects & Style::ITALIC).ne(&0) {
+            self.effects &= !Style::ITALIC
         } else {
-            self.effects |= Styled::ITALIC
+            self.effects |= Style::ITALIC
         }
     }
 
     pub fn blink(&mut self) {
-        if (self.effects & Styled::BLINK).ne(&0) {
-            self.effects &= !Styled::BLINK
+        if (self.effects & Style::BLINK).ne(&0) {
+            self.effects &= !Style::BLINK
         } else {
-            self.effects |= Styled::BLINK
+            self.effects |= Style::BLINK
         }
     }
 
     pub fn faint(&mut self) {
-        if (self.effects & Styled::FAINT).ne(&0) {
-            self.effects &= !Styled::FAINT
+        if (self.effects & Style::FAINT).ne(&0) {
+            self.effects &= !Style::FAINT
         } else {
-            self.effects |= Styled::FAINT
+            self.effects |= Style::FAINT
         }
     }
 
     pub fn conceal(&mut self) {
-        if (self.effects & Styled::CONCEAL).ne(&0) {
-            self.effects &= !Styled::CONCEAL
+        if (self.effects & Style::CONCEAL).ne(&0) {
+            self.effects &= !Style::CONCEAL
         } else {
-            self.effects |= Styled::CONCEAL
+            self.effects |= Style::CONCEAL
         }
     }
 
     pub fn reverse(&mut self) {
-        if (self.effects & Styled::REVERSE).ne(&0) {
-            self.effects &= !Styled::REVERSE
+        if (self.effects & Style::REVERSE).ne(&0) {
+            self.effects &= !Style::REVERSE
         } else {
-            self.effects |= Styled::REVERSE
+            self.effects |= Style::REVERSE
         }
     }
 
@@ -144,25 +147,25 @@ impl Styled {
         self.background = None;
     }
 
-    pub fn styled(&self) -> String {
-        let mut styled = String::from("\x1b[");
+    pub fn style(&self) -> String {
+        let mut style = String::from("\x1b[");
 
         // add effects
-        self.bits().iter().for_each(|b| styled += Self::effect(b));
+        self.bits().iter().for_each(|b| style += Self::effect(b));
 
         // add text color
-        self.text(&mut styled);
+        self.text(&mut style);
 
         // add background color
-        self.background(&mut styled);
+        self.background(&mut style);
 
         // clean up the expression
-        match styled.remove(styled.len() - 1) {
-            '[' => styled += "[0m",
-            _ => styled += "m",
+        match style.remove(style.len() - 1) {
+            '[' => style += "[0m",
+            _ => style += "m",
         };
 
-        styled
+        style
     }
 
     fn bits(&self) -> [u8; 8] {
@@ -196,18 +199,18 @@ impl Styled {
     }
 
     pub fn calibrate(&self, s: &mut String) {
-        *s = self.styled();
+        *s = self.style();
     }
 
-    fn text(&self, styled: &mut String) {
+    fn text(&self, style: &mut String) {
         if self.text.is_some() {
-            self.text.as_ref().unwrap().text(styled);
+            self.text.as_ref().unwrap().text(style);
         }
     }
 
-    fn background(&self, styled: &mut String) {
+    fn background(&self, style: &mut String) {
         if self.background.is_some() {
-            self.background.as_ref().unwrap().background(styled);
+            self.background.as_ref().unwrap().background(style);
         }
     }
 
@@ -250,5 +253,55 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_styled() {}
+    fn test_style() {}
+}
+
+struct Token {}
+
+use std::collections::HashMap;
+use std::ops::Range;
+
+//
+enum MatchingRule {
+    // tokens are grouped by conditions
+    Conditional,
+    // tokens are grouped by appearance, first second and so forth,
+    // takes an argument that decides how many tokens would go in one group
+    // 1 means that each token is a group, 2 means that every two consecutive tokens make up a group
+    Sequential(u8),
+}
+
+// stylegraphs describe how styles are applied to bodies of text
+struct StyleGraph {
+    // fn that takes a text value and tokenizes it in some way
+    tokenizer: fn(&[char], MatchingRule),
+    // a map matching a style id to a range inside the value
+    //// that will be styled
+    map: HashMap<StyleId, Vec<Range<usize>>>,
+    rule: MatchingRule,
+}
+
+impl StyleGraph {
+    fn new(f: fn(&[char], MatchingRule), rule: MatchingRule) -> Self {
+        Self {
+            map: HashMap::new(),
+            tokenizer: f,
+            rule,
+        }
+    }
+
+    fn tokenize(&self) {}
+
+    fn tokenizer(&mut self, f: fn(&[char], MatchingRule)) {
+        self.tokenizer = f;
+    }
+
+    fn randomize(&mut self) {}
+
+    // manually pair a style id with a Range in the map
+    fn pair(&mut self, sid: u8, range: Range<usize>) {}
+
+    fn rule(&mut self, mr: MatchingRule) {
+        self.rule = mr;
+    }
 }
