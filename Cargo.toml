@@ -20,6 +20,10 @@ name = "events"
 path = "examples/events.rs"
 
 [[example]]
+name = "bad"
+path = "examples/bad.rs"
+
+[[example]]
 name = "bufimg"
 path = "examples/buffer_image.rs"
 

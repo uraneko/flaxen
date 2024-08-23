@@ -37,7 +37,7 @@ where
 {
     // the id of the instance of whatever the trait is being implemented on
     // this assures that the generic trait is only implemented on 1 instance of the type
-    const VALIDATE: char;
+    // const VALIDATE: char;
 
     /// takes a kbd input event and returns an event conclusion
     /// this functions body always has a match statement that matches on the key and modifiers of
@@ -46,10 +46,10 @@ where
     /// type T is so that the trait can be implemented for the same type many times
     /// the default way of doing this is that for every impl of Events for the same type, you  creating an empty struct type and use as the generic of that particular impl
     fn fire(&self, input: T) -> impl EventsConclusion;
-    fn id(&self) -> EventId;
-    fn validate(&self);
+    // fn id(&self) -> EventId;
+    // fn validate(&self);
 }
 
-trait HasId {
-    fn id(&self) -> u8;
+pub trait HasId {
+    fn id(&self) -> &str;
 }

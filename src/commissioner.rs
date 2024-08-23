@@ -62,10 +62,6 @@ impl Commissioner {
         }
     }
 
-    pub fn approve_space(space: Space<usize>) -> bool {
-        true
-    }
-
     pub async fn process<'t1, 't2>(ke: &KbdEvent, term: &mut Term<'t1, 't2>) {}
 
     pub fn clear(writer: &mut StdoutLock) {}
@@ -148,5 +144,44 @@ async fn ragout<'a, 'b, P, T, IE, R>(
         comr::process(&input, term).await;
         comr::clear(writer);
         comr::render(writer, term);
+    }
+}
+
+pub enum InitEvent {
+    Term,
+    Component,
+    Text(bool),
+}
+
+impl EventsTrigger for InitEvent {}
+impl<'a, 'b, const CLASS: char> EventsConclusion
+    for Option<Result<Component<'a, 'b, CLASS>, Text<'b, CLASS>>>
+{
+}
+
+pub struct CreateObject;
+
+use crate::container::{Component, Input, NonEditable, Text};
+
+use crate::events::HasId;
+
+impl<'a, 'b> HasId for Term<'a, 'b> {
+    fn id(&self) -> &'static str {
+        self.id
+    }
+}
+
+impl<'a, 'b> EventsConclusion for Option<Result<Component<'a, 'b, 'C'>, Text<'b, 'I'>>> {}
+
+impl<'a, 'b> Events<CreateObject, InitEvent> for Term<'a, 'b> {
+    fn fire(&self, input: InitEvent) -> Option<Result<Component<'a, 'b, 'C'>, Text<'b, 'I'>>> {
+        match input {
+            InitEvent::Term => None,
+            InitEvent::Component => Some(Ok(Component::new("T0C0", Space::default()))),
+            InitEvent::Text(editable) => Some(Err(match editable {
+                true => Text::Input(Input::new("T0C0I0")),
+                false => Text::NonEditable(NonEditable::new("T0C0NE0")),
+            })),
+        }
     }
 }

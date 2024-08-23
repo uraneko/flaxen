@@ -71,6 +71,7 @@ use crate::container::Point;
 // otherwise cache is a libsql db that can house many caches, not just input Histories
 #[derive(Debug)]
 pub struct Term<'a, 'b> {
+    id: ID<'static>,
     cache: HashMap<&'static str, Vec<u8>>,
     buf: Vec<u8>,
     width: u16,
@@ -87,6 +88,7 @@ impl<'a, 'b> Term<'a, 'b> {
         buf.resize((ws.rows() * ws.cols()) as usize, 0);
 
         Self {
+            id: "T0",
             cache: HashMap::new(),
             cursor: Point::new(0, 0),
             width: ws.cols(),
@@ -113,9 +115,6 @@ impl<'a, 'b> Term<'a, 'b> {
 
     pub fn j(&mut self, p: u8) {
         let esc_seq = format!("\x1b[{}J", p);
-        if self.sol.is_some() {
-            _ = self.sol.as_mut().unwrap().write(&esc_seq.as_bytes());
-        }
     }
 }
 
@@ -142,9 +141,6 @@ use std::io::Write;
 impl<'a, 'b> Term<'a, 'b> {
     fn f(&mut self, x: u16, y: u16) {
         let esc_seq = format!("\x1b{};{}f", x, y);
-        if self.sol.is_some() {
-            _ = self.sol.as_mut().unwrap().write(&esc_seq.as_bytes());
-        }
     }
 }
 

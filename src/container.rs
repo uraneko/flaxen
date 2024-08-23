@@ -155,7 +155,7 @@ impl<
 }
 
 #[derive(Debug)]
-enum Text<'a, const CLASS: char> {
+pub enum Text<'a, const CLASS: char> {
     Input(Input<'a, CLASS>),
     NonEditable(NonEditable<'a, CLASS>),
     None,
@@ -174,11 +174,31 @@ pub struct Input<'a, const CLASS: char> {
     space: Space<usize>,
 }
 
+impl<'a, const CLASS: char> Input<'a, CLASS> {
+    pub fn new(id: ID<'a>) -> Self {
+        Self {
+            value: vec![],
+            space: Space::default(),
+            id,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct NonEditable<'a, const CLASS: char> {
     id: ID<'a>,
     value: Vec<char>,
     space: Space<usize>,
+}
+
+impl<'a, const CLASS: char> NonEditable<'a, CLASS> {
+    pub fn new(id: ID<'a>) -> Self {
+        Self {
+            value: vec![],
+            space: Space::default(),
+            id,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
