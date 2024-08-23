@@ -1,6 +1,7 @@
 pub mod commissioner;
 pub mod container;
 pub mod events;
+pub mod history;
 pub mod input;
 pub mod kbd_decode;
 pub mod presets;
@@ -71,6 +72,7 @@ use crate::container::Point;
 // otherwise cache is a libsql db that can house many caches, not just input Histories
 #[derive(Debug)]
 pub struct Term<'a, 'b> {
+    overlaying: bool,
     id: ID<'static>,
     cache: HashMap<&'static str, Vec<u8>>,
     buf: Vec<u8>,
@@ -78,6 +80,15 @@ pub struct Term<'a, 'b> {
     height: u16,
     cursor: Point<u16>,
     tree: LayerTree<'a, 'b>,
+}
+
+// TODO: shelve the layer tree stuff in favor of inluding the whole object tree inside the term
+
+use crate::container::Component;
+type Container<'a, 'b> = Component<'a, 'b, 'a'>;
+
+struct ObjectTree<'a, 'b> {
+    containers: [Container<'a, 'b>; 8],
 }
 
 impl<'a, 'b> Term<'a, 'b> {
@@ -89,6 +100,7 @@ impl<'a, 'b> Term<'a, 'b> {
 
         Self {
             id: "T0",
+            overlaying: false,
             cache: HashMap::new(),
             cursor: Point::new(0, 0),
             width: ws.cols(),
@@ -125,7 +137,7 @@ impl<'a, 'b> Term<'a, 'b> {
 // the commissioner in turn tells every component and its items in the buffer
 // then he rescales their rendered data to the new window scale and dimensions
 // then the buffer updates its buf with the new stuff and updates its global cursor
-pub trait SpaceMorph {
+pub trait SpaceAwareness {
     fn rescale(&mut self);
 }
 
