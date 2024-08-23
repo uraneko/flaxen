@@ -21,25 +21,23 @@ mod tests {
     }
 }
 
-use crate::KbdEvent;
-
-trait EventConclusion {}
+pub trait EventsConclusion {}
 
 enum EventId {}
 enum Edges {}
 
-pub trait PlaceHolder {}
+pub trait EventsTrigger {}
 
 // P is a PlaceHolder type that allows any crate to implement this trait for types native to
 // this crate
 // T is the trigger type which will be matched on to trigger an event
 pub trait Events<P, T>: HasId
 where
-    P: PlaceHolder,
+    T: EventsTrigger,
 {
     // the id of the instance of whatever the trait is being implemented on
     // this assures that the generic trait is only implemented on 1 instance of the type
-    const ID: u8;
+    const VALIDATE: char;
 
     /// takes a kbd input event and returns an event conclusion
     /// this functions body always has a match statement that matches on the key and modifiers of
@@ -47,7 +45,7 @@ where
     /// on
     /// type T is so that the trait can be implemented for the same type many times
     /// the default way of doing this is that for every impl of Events for the same type, you  creating an empty struct type and use as the generic of that particular impl
-    fn fire(&self, input: T) -> impl EventConclusion;
+    fn fire(&self, input: T) -> impl EventsConclusion;
     fn id(&self) -> EventId;
     fn validate(&self);
 }
