@@ -19,7 +19,7 @@ fn main() {
 
     loop {
         read_ki(&mut reader, &mut i);
-        print!("{:?}\r\n", decode_ki(&i));
+        print!("{:?}\r\n{:?}\r\n", &i, decode_ki(&i));
         _ = writer.flush();
 
         if i[0] == 3 && i.len() == 1 {

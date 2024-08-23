@@ -1,7 +1,9 @@
+pub mod commissioner;
 pub mod container;
 pub mod events;
 pub mod input;
 pub mod kbd_decode;
+pub mod presets;
 pub mod raw_mode;
 pub mod styled;
 pub mod termbuf;
@@ -17,50 +19,96 @@ use std::ops::Range;
 // cursor, raw and sol can be globals
 // also, init commissioner
 
-#[derive(Debug)]
-struct BufStore {
-    cache: HashMap<Id, Memory>,
-    buf: Vec<u8>,
-    tree: BTreeMap<Id, Container>,
-}
-
-#[derive(Debug)]
-struct Memory {}
-#[derive(Debug)]
-struct Id {}
-#[derive(Debug)]
-struct Container {}
-use std::collections::{BTreeMap, HashMap};
+use container::ID;
 
 #[derive(Debug, Default)]
-pub struct Terminal {
-    buffer: Vec<u16>,
-    winsize: winsize,
-    cursor: Range<usize>,
-    raw: termios,
-    // esc_seq: String,
-    sol: Option<StdoutLock<'static>>,
+struct LayerTree<'a, 'b> {
+    tree: Layer0<'a, 'b>,
 }
 
-impl Terminal {
+#[derive(Debug, Default)]
+struct Layer0<'a, 'b> {
+    value: Vec<ID<'static>>,
+    components: Vec<Layer1<'a, 'b>>,
+    link_less: Vec<LinkLess>,
+}
+
+// components are on this layer
+#[derive(Debug, Default)]
+struct Layer1<'a, 'b>
+where
+    'a: 'b,
+{
+    value: Vec<ID<'a>>,
+    items: Vec<Layer2<'b>>,
+}
+
+// text types can be found on this layer
+#[derive(Debug, Default)]
+struct Layer2<'a> {
+    value: Vec<ID<'a>>,
+}
+
+// types not part of the object heirarchy but still have an id can be found here
+// eg. StyleGraphs and Styles
+#[derive(Debug, Default)]
+struct LinkLess {
+    value: Vec<ID<'static>>,
+}
+
+impl<'a, 'b> LayerTree<'a, 'b> {
+    fn new() -> Self {
+        Self {
+            tree: Layer0::default(),
+        }
+    }
+}
+
+use crate::container::Point;
+
+// if feature 'presets' is on then the crate only compiles the basic presets,
+// in this case, cache is only a vec of History values that get saved to a file,
+// otherwise cache is a libsql db that can house many caches, not just input Histories
+#[derive(Debug)]
+pub struct Term<'a, 'b> {
+    cache: HashMap<&'static str, Vec<u8>>,
+    buf: Vec<u8>,
+    width: u16,
+    height: u16,
+    cursor: Point<u16>,
+    tree: LayerTree<'a, 'b>,
+}
+
+impl<'a, 'b> Term<'a, 'b> {
     pub fn new() -> Self {
         let ws = winsize::from_ioctl();
 
         let mut buf = vec![];
         buf.resize((ws.rows() * ws.cols()) as usize, 0);
 
-        let mut sol = std::io::stdout().lock();
-        // _ = sol.write(b"\x1b[?1049h");
-        // _ = sol.write(b"\x1b[0;0f");
-        // _ = sol.flush();
-
         Self {
-            buffer: buf,
-            winsize: ws,
-            cursor: Default::default(),
-            raw: raw_mode(),
-            sol: Some(sol),
+            cache: HashMap::new(),
+            cursor: Point::new(0, 0),
+            width: ws.cols(),
+            height: ws.rows(),
+            buf,
+            tree: LayerTree::<'a, 'b>::new(),
         }
+    }
+
+    pub fn print_buf(&self) {
+        for idxr in 0..self.buf.len() / self.width as usize {
+            print!("\r\n");
+            for idxc in 0..self.buf.len() / self.height as usize {
+                print!("{}", self.buf[idxr]);
+            }
+        }
+    }
+
+    fn refresh(&mut self) {
+        let ws = winsize::from_ioctl();
+        self.width = ws.cols();
+        self.height = ws.rows();
     }
 
     pub fn j(&mut self, p: u8) {
@@ -69,69 +117,44 @@ impl Terminal {
             _ = self.sol.as_mut().unwrap().write(&esc_seq.as_bytes());
         }
     }
-
-    pub fn raw(&self) -> &termios {
-        &self.raw
-    }
 }
+
+// NOTE: window resizing is polled at every frame redraw
+// logic for when the window is resized,
+// first the resize is detected by a buffer image events
+// then the buffer tells the commissioner
+// the commissioner in turn tells every component and its items in the buffer
+// then he rescales their rendered data to the new window scale and dimensions
+// then the buffer updates its buf with the new stuff and updates its global cursor
+pub trait SpaceMorph {
+    fn rescale(&mut self);
+}
+
+#[derive(Debug)]
+struct DB {}
+#[derive(Debug)]
+struct Memory {}
+use std::collections::{BTreeMap, HashMap};
 
 use std::io::StdoutLock;
 use std::io::Write;
 
-impl Drop for Terminal {
-    fn drop(&mut self) {
-        let sol = self.sol.as_mut().unwrap();
-        cooked_mode(&self.raw);
-        _ = sol.write(b"\x1b[?1049l");
-        _ = sol.flush();
-    }
-}
-
-struct ScreenShot<'a> {
-    buffer: &'a [u16],
-    rows: u16,
-    cols: u16,
-    origin: Range<usize>,
-}
-
-impl Terminal {
+impl<'a, 'b> Term<'a, 'b> {
     fn f(&mut self, x: u16, y: u16) {
         let esc_seq = format!("\x1b{};{}f", x, y);
         if self.sol.is_some() {
             _ = self.sol.as_mut().unwrap().write(&esc_seq.as_bytes());
         }
     }
-
-    // breaks the program
-    pub fn c(&mut self) {
-        if self.sol.is_some() {
-            _ = self.sol.as_mut().unwrap().write(b"\x1b[c");
-        }
-    }
-
-    fn write(&mut self, input: &[u8]) {
-        if self.sol.is_some() {
-            _ = self.sol.as_mut().unwrap().write(input);
-        }
-    }
-
-    fn screenshot(&self) -> ScreenShot {
-        ScreenShot {
-            buffer: &self.buffer,
-            rows: self.winsize.rows(),
-            cols: self.winsize.cols(),
-            origin: Range::default(),
-        }
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Terminal;
+    use super::Term;
 
     #[test]
     fn test_raw_mode() {
-        let _ = Terminal::new();
+        let _ = Term::new();
 
         println!("we are now inside raw mode");
         println!("we are now inside raw mode");
@@ -148,3 +171,5 @@ mod tests {
 // 5b => non editable text container logic (including prompt)
 // 5c => popup container logic
 // 6 => panes support
+
+use commissioner::Commissioner;

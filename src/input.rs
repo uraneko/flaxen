@@ -1,4 +1,10 @@
+use crate::container::Input;
 use std::io::{StdoutLock, Write};
+
+impl<'a, const CLASS: char> Input<'a, CLASS> {
+    // submit user input to the program
+    fn submit(&mut self) {}
+}
 
 // raw mode:
 // you need to create exetrns for C functions from unistd.h
@@ -34,7 +40,7 @@ use std::io::{StdoutLock, Write};
 pub fn init(
     prompt: &str,
     alt_screen: bool,
-) -> (std::io::StdoutLock<'static>, Input, History, String) {
+) -> (std::io::StdoutLock<'static>, Inputt, History, String) {
     // _ = enable_raw_mode();
 
     let mut sol = std::io::stdout().lock();
@@ -44,7 +50,7 @@ pub fn init(
         _ = sol.write(b"\x1b[1;1f");
     }
 
-    let i = Input::new(prompt, alt_screen);
+    let i = Inputt::new(prompt, alt_screen);
     i.write_prompt(&mut sol);
 
     (sol, i, History::new(), String::new())
@@ -53,7 +59,7 @@ pub fn init(
 /// A struct that implements the user input movement and deletion logic inside the terminal raw
 /// mode
 #[derive(Debug)]
-pub struct Input {
+pub struct Inputt {
     pub values: Vec<char>,
     pub cursor: usize,
     #[cfg(any(debug_assertions, feature = "debug_logs"))]
@@ -62,8 +68,8 @@ pub struct Input {
     pub alt_screen: bool,
 }
 
-impl Input {
-    /// Creates a new Input instance
+impl Inputt {
+    /// Creates a new Inputt instance
     pub fn new(prompt: &str, alt_screen: bool) -> Self {
         Self {
             #[cfg(any(debug_assertions, feature = "debug_logs"))]
@@ -81,7 +87,7 @@ impl Input {
     }
 
     // NOTE: should input.values not be a byte vec instead of a char vec?
-    /// Adds inputted char to Input values at cursor position then increments Input cursor
+    /// Adds inputted char to Inputt values at cursor position then increments Inputt cursor
     pub fn put_char(&mut self, c: char) {
         match self.values.is_empty() {
             true => {
@@ -103,10 +109,10 @@ impl Input {
     }
 
     // TODO: multiline input
-    // WARN: do NOT touch this Input implementation
+    // WARN: do NOT touch this Inputt implementation
     // the fns other than write are not to be touched
 
-    /// Pushs Input values to history, then binds a [`String`] of the Input values to user_input and resets both Input cursor and values
+    /// Pushs Inputt values to history, then binds a [`String`] of the Inputt values to user_input and resets both Inputt cursor and values
     pub fn cr_lf(&mut self, h: &mut History, user_input: &mut String) {
         h.push(self.values.to_vec());
         *user_input = self.values.drain(..).collect::<String>();
@@ -121,7 +127,7 @@ impl Input {
         });
     }
 
-    /// Deletes the char behind the cursor position in the Input values
+    /// Deletes the char behind the cursor position in the Inputt values
     pub fn backspace(&mut self) {
         if self.values.is_empty() || self.cursor == 0 {
             return;
@@ -132,7 +138,7 @@ impl Input {
         }
     }
 
-    /// Moves the Input cursor one cell to the right
+    /// Moves the Inputt cursor one cell to the right
     pub fn to_the_right(&mut self) -> bool {
         if self.values.is_empty() || self.cursor == self.values.len() {
             return false;
@@ -142,7 +148,7 @@ impl Input {
         true
     }
 
-    /// Moves the Input cursor one cell to the left
+    /// Moves the Inputt cursor one cell to the left
     pub fn to_the_left(&mut self) -> bool {
         if self.values.is_empty() || self.cursor == 0 {
             return false;
@@ -152,7 +158,7 @@ impl Input {
         true
     }
 
-    /// Moves Input cursor to the position after the last in Input values (which is values.len())
+    /// Moves Inputt cursor to the position after the last in Inputt values (which is values.len())
     pub fn to_end(&mut self) -> usize {
         let diff = self.values.len() - self.cursor;
         if diff > 0 {
@@ -162,7 +168,7 @@ impl Input {
         diff
     }
 
-    /// Moves Input cursor to the first position in Input values (which is 0)
+    /// Moves Inputt cursor to the first position in Inputt values (which is 0)
     pub fn to_home(&mut self) -> bool {
         if self.cursor == 0 {
             return false;
@@ -172,20 +178,20 @@ impl Input {
         true
     }
 
-    /// Clears all the Input values
+    /// Clears all the Inputt values
     pub fn clear_line(&mut self) {
         self.cursor = 0;
         self.values.clear();
     }
 
-    /// clears the values of Input to the right of Input cursor
+    /// clears the values of Inputt to the right of Inputt cursor
     pub fn clear_right(&mut self) {
         for _ in self.cursor..self.values.len() {
             self.values.pop();
         }
     }
 
-    /// clears the values of Input to the left of Input cursor
+    /// clears the values of Inputt to the left of Inputt cursor
     pub fn clear_left(&mut self) {
         for _ in 0..self.cursor {
             self.values.remove(0);
@@ -195,7 +201,7 @@ impl Input {
 
     const STOPPERS: [char; 11] = ['/', ' ', '-', '_', ',', '"', '\'', ';', ':', '.', ','];
 
-    /// Syncs Input's internal state to a movement of the user input cursor to the right, stops at the first stopper char
+    /// Syncs Inputt's internal state to a movement of the user input cursor to the right, stops at the first stopper char
     pub fn to_right_jump(&mut self) {
         if self.cursor == self.values.len() {
             return;
@@ -223,7 +229,7 @@ impl Input {
         }
     }
 
-    /// Syncs Input's internal state to a movement of the user input cursor to the left, stops at the first stopper char
+    /// Syncs Inputt's internal state to a movement of the user input cursor to the left, stops at the first stopper char
     pub fn to_left_jump(&mut self) {
         if self.cursor == 0 {
             return;
@@ -322,11 +328,11 @@ impl History {
 
 #[cfg(test)]
 mod test_input {
-    use super::{History, Input};
+    use super::{History, Inputt};
 
     #[test]
     fn test_put_char() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         let mut idx = 0;
         ['p', 'i', 'k', 'a'].into_iter().for_each(|c| {
@@ -340,7 +346,7 @@ mod test_input {
 
     #[test]
     fn test_backspace() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         let input = "pikatchino";
         input.chars().into_iter().for_each(|c| i.put_char(c));
@@ -352,7 +358,7 @@ mod test_input {
 
     #[test]
     fn test_to_end() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikatchaa".chars().into_iter().for_each(|c| i.put_char(c));
         // cursor is by default at end, but we still move it to end
@@ -376,7 +382,7 @@ mod test_input {
 
     #[test]
     fn test_to_home() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikatchuu".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -386,7 +392,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_right() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_the_left();
@@ -398,7 +404,7 @@ mod test_input {
 
     #[test]
     fn test_to_the_left() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
         i.to_home();
@@ -411,7 +417,7 @@ mod test_input {
 
     #[test]
     fn test_cr_lf() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
         let mut h = History::new();
         let mut user_input = String::new();
 
@@ -429,7 +435,7 @@ mod test_input {
 
     #[test]
     fn test_clear_line() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
 
@@ -442,7 +448,7 @@ mod test_input {
 
     #[test]
     fn test_clear_right() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikatchiatto"
             .chars()
@@ -458,7 +464,7 @@ mod test_input {
 
     #[test]
     fn test_clear_left() {
-        let mut i = Input::new("testing input> ", false);
+        let mut i = Inputt::new("testing input> ", false);
 
         "pikatchiatto"
             .chars()
@@ -473,14 +479,14 @@ mod test_input {
     }
 }
 
-impl Input {
-    /// Changes the Input prompt value to the provided string
+impl Inputt {
+    /// Changes the Inputt prompt value to the provided string
     pub fn overwrite_prompt(&mut self, new_prompt: &str) {
         self.prompt.clear();
         self.prompt.push_str(new_prompt);
     }
 
-    /// Renders the Input prompt followed by the Input values on a clean line
+    /// Renders the Inputt prompt followed by the Inputt values on a clean line
     pub fn write_prompt(&self, sol: &mut StdoutLock) {
         _ = sol.write(b"\x1b[2K");
         _ = sol.write(&[13]);
@@ -489,7 +495,7 @@ impl Input {
         _ = sol.flush();
     }
 
-    /// Syncs the user input cursor displayed in the terminal to the cursor of Input
+    /// Syncs the user input cursor displayed in the terminal to the cursor of Inputt
     pub fn sync_cursor(&self, sol: &mut StdoutLock) {
         _ = sol.write(&[13]);
         // BUG: at every first inputted char of an input line, the cursor was moving forward
