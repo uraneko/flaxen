@@ -299,7 +299,7 @@ impl<'a> Id for ID<'a> {
     fn kind(&self) -> IDKind {
         match self[2..].split(|c: char| c.is_ascii()).count() {
             0 => IDKind::BufferImage,
-            1 => IDKind::Component,
+            1 => IDKind::Container,
             2 => IDKind::TextInput,
             3 => IDKind::TextNE,
             4 => IDKind::Events,
@@ -316,7 +316,7 @@ pub enum IDError {
 #[derive(Debug)]
 pub enum IDKind {
     BufferImage,
-    Component,
+    Container,
     TextInput,
     // NonEditable Text
     TextNE,
@@ -334,7 +334,7 @@ impl<'a, const CLASS: char> Input<'a, CLASS> {}
 type TextId = u8;
 
 #[derive(Debug)]
-pub struct Component<'a, 'b, const CLASS: char>
+pub struct Container<'a, 'b, const CLASS: char>
 where
     'a: 'b,
 {
@@ -343,7 +343,7 @@ where
     space: Space<usize>,
 }
 
-impl<'a, 'b, const CLASS: char> std::fmt::Display for Component<'a, 'b, CLASS> {
+impl<'a, 'b, const CLASS: char> std::fmt::Display for Container<'a, 'b, CLASS> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#?}", self)
     }
@@ -353,9 +353,9 @@ impl<'a, 'b, const CLASS: char> std::fmt::Display for Component<'a, 'b, CLASS> {
 // the Commissioner handles all ID matters
 // he also handles all Events matters
 // and all Space allocation matters
-// he is the only one with access to the LayerMap
+// he is the only one with access to the Term father
 
-impl<'a, 'b, const CLASS: char> Component<'a, 'b, CLASS> {
+impl<'a, 'b, const CLASS: char> Container<'a, 'b, CLASS> {
     pub fn new(id: ID<'b>, space: Space<usize>) -> Self {
         Self {
             id,

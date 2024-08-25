@@ -57,16 +57,24 @@ impl Commissioner {
             IDKind::TextInput => Ok(0), // checks for self last TextId and returns the next one
             IDKind::TextNE => Ok(0),    // checks for self last TextId and returns the next one
             IDKind::Events => Ok(0),
-            IDKind::Component => Ok(0),
+            IDKind::Container => Ok(0),
             IDKind::BufferImage => Err(IDError::ProgramIsUnique),
         }
     }
 
-    pub async fn process<'t1, 't2>(ke: &KbdEvent, term: &mut Term<'t1, 't2>) {}
+    pub async fn process<'t1, 't2, const CLASS: char>(
+        ke: &KbdEvent,
+        term: &mut Term<'t1, 't2, CLASS>,
+    ) {
+    }
 
     pub fn clear(writer: &mut StdoutLock) {}
 
-    pub fn render(writer: &mut StdoutLock, term: &mut Term) {}
+    pub fn render<'t1, 't2, const CLASS: char>(
+        writer: &mut StdoutLock,
+        term: &mut Term<'t1, 't2, CLASS>,
+    ) {
+    }
 }
 
 struct InnerLogic;
@@ -124,10 +132,10 @@ impl Commissioner {
 
 type comr = Commissioner;
 
-async fn ragout<'a, 'b, P, T, IE, R>(
+async fn ragout<'a, 'b, P, T, IE, R, const CLASS: char>(
     reader: &mut StdinLock<'static>,
     input: &mut Vec<u8>,
-    term: &mut Term<'a, 'b>,
+    term: &mut Term<'a, 'b, CLASS>,
     writer: &mut StdoutLock<'static>,
 ) where
     IE: Events<P, T>,
@@ -149,35 +157,35 @@ async fn ragout<'a, 'b, P, T, IE, R>(
 
 pub enum InitEvent {
     Term,
-    Component,
+    Container,
     Text(bool),
 }
 
 impl EventsTrigger for InitEvent {}
 impl<'a, 'b, const CLASS: char> EventsConclusion
-    for Option<Result<Component<'a, 'b, CLASS>, Text<'b, CLASS>>>
+    for Option<Result<Container<'a, 'b, CLASS>, Text<'b, CLASS>>>
 {
 }
 
 pub struct CreateObject;
 
-use crate::container::{Component, Input, NonEditable, Text};
+use crate::container::{Container, Input, NonEditable, Text};
 
 use crate::events::HasId;
 
-impl<'a, 'b> HasId for Term<'a, 'b> {
+impl<'a, 'b, const CLASS: char> HasId for Term<'a, 'b, CLASS> {
     fn id(&self) -> &'static str {
         self.id
     }
 }
 
-impl<'a, 'b> EventsConclusion for Option<Result<Component<'a, 'b, 'C'>, Text<'b, 'I'>>> {}
+impl<'a, 'b> EventsConclusion for Option<Result<Container<'a, 'b, 'C'>, Text<'b, 'I'>>> {}
 
-impl<'a, 'b> Events<CreateObject, InitEvent> for Term<'a, 'b> {
-    fn fire(&self, input: InitEvent) -> Option<Result<Component<'a, 'b, 'C'>, Text<'b, 'I'>>> {
+impl<'a, 'b, const CLASS: char> Events<CreateObject, InitEvent> for Term<'a, 'b, CLASS> {
+    fn fire(&self, input: InitEvent) -> Option<Result<Container<'a, 'b, 'C'>, Text<'b, 'I'>>> {
         match input {
             InitEvent::Term => None,
-            InitEvent::Component => Some(Ok(Component::new("T0C0", Space::default()))),
+            InitEvent::Container => Some(Ok(Container::new("T0C0", Space::default()))),
             InitEvent::Text(editable) => Some(Err(match editable {
                 true => Text::Input(Input::new("T0C0I0")),
                 false => Text::NonEditable(NonEditable::new("T0C0NE0")),

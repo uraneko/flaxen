@@ -1,7 +1,7 @@
-fn init<'a, 'b>() -> (
+fn init<'a, 'b, const CLASS: char>() -> (
     std::io::StdinLock<'static>,
     std::io::StdoutLock<'static>,
-    crate::Term<'a, 'b>,
+    crate::Term<'a, 'b, CLASS>,
     String,
 ) {
     (

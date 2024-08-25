@@ -1,3 +1,4 @@
+#![allow(warnings)]
 pub mod commissioner;
 pub mod container;
 pub mod events;
@@ -6,7 +7,7 @@ pub mod input;
 pub mod kbd_decode;
 pub mod presets;
 pub mod raw_mode;
-pub mod styled;
+pub mod styles;
 pub mod termbuf;
 
 pub use kbd_decode::*;
@@ -20,50 +21,11 @@ use std::ops::Range;
 // cursor, raw and sol can be globals
 // also, init commissioner
 
+// TODO: change ID to be a u16 value
+// the first byte would describe what the type is; eg, Events, Themes, Terms...
+// the second byte would describe the path of the ID holder; eg, Term0 -> Container2 -> TextInput5
+
 use container::ID;
-
-#[derive(Debug, Default)]
-struct LayerTree<'a, 'b> {
-    tree: Layer0<'a, 'b>,
-}
-
-#[derive(Debug, Default)]
-struct Layer0<'a, 'b> {
-    value: Vec<ID<'static>>,
-    components: Vec<Layer1<'a, 'b>>,
-    link_less: Vec<LinkLess>,
-}
-
-// components are on this layer
-#[derive(Debug, Default)]
-struct Layer1<'a, 'b>
-where
-    'a: 'b,
-{
-    value: Vec<ID<'a>>,
-    items: Vec<Layer2<'b>>,
-}
-
-// text types can be found on this layer
-#[derive(Debug, Default)]
-struct Layer2<'a> {
-    value: Vec<ID<'a>>,
-}
-
-// types not part of the object heirarchy but still have an id can be found here
-// eg. StyleGraphs and Styles
-#[derive(Debug, Default)]
-struct LinkLess {
-    value: Vec<ID<'static>>,
-}
-
-impl<'a, 'b> LayerTree<'a, 'b> {
-    fn new() -> Self {
-        Self {
-            tree: Layer0::default(),
-        }
-    }
-}
 
 use crate::container::Point;
 
@@ -71,7 +33,7 @@ use crate::container::Point;
 // in this case, cache is only a vec of History values that get saved to a file,
 // otherwise cache is a libsql db that can house many caches, not just input Histories
 #[derive(Debug)]
-pub struct Term<'a, 'b> {
+pub struct Term<'a, 'b, const CLASS: char> {
     overlaying: bool,
     id: ID<'static>,
     cache: HashMap<&'static str, Vec<u8>>,
@@ -79,19 +41,31 @@ pub struct Term<'a, 'b> {
     width: u16,
     height: u16,
     cursor: Point<u16>,
-    tree: LayerTree<'a, 'b>,
+    tree: ObjectTree<'a, 'b, CLASS>,
 }
 
 // TODO: shelve the layer tree stuff in favor of inluding the whole object tree inside the term
 
-use crate::container::Component;
-type Container<'a, 'b> = Component<'a, 'b, 'a'>;
+use crate::container::Container;
 
-struct ObjectTree<'a, 'b> {
-    containers: [Container<'a, 'b>; 8],
+use crate::styles::StyleStrategy;
+
+#[derive(Debug)]
+struct ObjectTree<'a, 'b, const CLASS: char> {
+    containers: Vec<Container<'a, 'b, CLASS>>,
+    linkless: Vec<StyleStrategy>,
 }
 
-impl<'a, 'b> Term<'a, 'b> {
+impl<'a, 'b, const CLASS: char> ObjectTree<'a, 'b, CLASS> {
+    fn new() -> Self {
+        Self {
+            containers: vec![],
+            linkless: vec![],
+        }
+    }
+}
+
+impl<'a, 'b, const CLASS: char> Term<'a, 'b, CLASS> {
     pub fn new() -> Self {
         let ws = winsize::from_ioctl();
 
@@ -106,7 +80,7 @@ impl<'a, 'b> Term<'a, 'b> {
             width: ws.cols(),
             height: ws.rows(),
             buf,
-            tree: LayerTree::<'a, 'b>::new(),
+            tree: ObjectTree::<'a, 'b, CLASS>::new(),
         }
     }
 
@@ -141,6 +115,13 @@ pub trait SpaceAwareness {
     fn rescale(&mut self);
 }
 
+// TODO:
+// change ID from using &str and the current
+// slew of lifetimes i have to write to using u8 values as IDs,
+// the higher four bits on the u8 are used to identify the type being ided,
+// ie, Event, Container, Text...
+// the lower four bits are that exact instance's identification values
+
 #[derive(Debug)]
 struct DB {}
 #[derive(Debug)]
@@ -150,7 +131,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::StdoutLock;
 use std::io::Write;
 
-impl<'a, 'b> Term<'a, 'b> {
+impl<'a, 'b, const CLASS: char> Term<'a, 'b, CLASS> {
     fn f(&mut self, x: u16, y: u16) {
         let esc_seq = format!("\x1b{};{}f", x, y);
     }
@@ -162,7 +143,7 @@ mod tests {
 
     #[test]
     fn test_raw_mode() {
-        let _ = Term::new();
+        let _ = Term::<'w'>::new();
 
         println!("we are now inside raw mode");
         println!("we are now inside raw mode");

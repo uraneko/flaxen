@@ -261,8 +261,8 @@ struct Token {}
 use std::collections::HashMap;
 use std::ops::Range;
 
-//
-enum MatchingRule {
+#[derive(Debug)]
+pub enum StyleStrategy {
     // tokens are grouped by conditions
     Conditional,
     // tokens are grouped by appearance, first second and so forth,
@@ -272,17 +272,17 @@ enum MatchingRule {
 }
 
 // stylegraphs describe how styles are applied to bodies of text
-struct StyleGraph {
+pub struct StyleGraph {
     // fn that takes a text value and tokenizes it in some way
-    tokenizer: fn(&[char], MatchingRule),
+    tokenizer: fn(&[char], StyleStrategy),
     // a map matching a style id to a range inside the value
     //// that will be styled
     map: HashMap<StyleId, Vec<Range<usize>>>,
-    rule: MatchingRule,
+    rule: StyleStrategy,
 }
 
 impl StyleGraph {
-    fn new(f: fn(&[char], MatchingRule), rule: MatchingRule) -> Self {
+    fn new(f: fn(&[char], StyleStrategy), rule: StyleStrategy) -> Self {
         Self {
             map: HashMap::new(),
             tokenizer: f,
@@ -292,7 +292,7 @@ impl StyleGraph {
 
     fn tokenize(&self) {}
 
-    fn tokenizer(&mut self, f: fn(&[char], MatchingRule)) {
+    fn tokenizer(&mut self, f: fn(&[char], StyleStrategy)) {
         self.tokenizer = f;
     }
 
@@ -301,7 +301,9 @@ impl StyleGraph {
     // manually pair a style id with a Range in the map
     fn pair(&mut self, sid: u8, range: Range<usize>) {}
 
-    fn rule(&mut self, mr: MatchingRule) {
+    fn rule(&mut self, mr: StyleStrategy) {
         self.rule = mr;
     }
 }
+
+trait Theme {}

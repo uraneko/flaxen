@@ -1,7 +1,7 @@
-use ragout::BufferImage;
+use ragout::Term;
 
 fn main() {
-    let bi = BufferImage::new();
+    let term = Term::<'w'>::new();
 
-    bi.print_buf();
+    term.print_buf();
 }

@@ -6,7 +6,7 @@ use ragout::*;
 fn main() {
     let init = InitEvent::Text(true);
 
-    let term = Term::new();
+    let term = Term::<'s'>::new();
 
     let iti = term.fire(init).unwrap();
     let Err(iti) = iti else {
