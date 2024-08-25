@@ -1,32 +1,49 @@
 use std::ops::Deref;
 
 fn main() {
-    let a = A::<'a'>::new(8);
-    let b = A::<'b'>::new(9);
+    let mut a = A::zero(8);
+    a.allow::<D>();
 
-    <A<'a'> as G<InnerLogic>>::a(&a); // doesnt error
+    let mut b = A::zero(9);
+    b.allow::<B>();
 
-    // <A<'b'> as G<InnerLogic>>::a(&b); // errors
+    println!("{:?}", a.id());
 
-    let c = A::<'a'>::new(34);
+    s::<Zero>();
 
-    <A<'a'> as G<InnerLogic>>::a(&c); // doesnt error
+    <A<D> as G<InnerLogic>>::a(&a.morph::<D>()); // doesnt error
 
-    <A<'b'> as G<OverReach>>::a(&b);
+    // <A<O> as G<InnerLogic>>::a(&b.morph::<O>()); // errors
 
-    let y = Y {
-        v: vec![Box::new(A::<'a'>::new(87)), Box::new(A::<'2'>::new(89))],
+    let mut c: A<B> = A::<B>::new(34);
+    c.allow::<D>();
+
+    <A<D> as G<InnerLogic>>::a(&c.morph::<D>()); // doesnt error
+
+    <A<B> as G<OverReach>>::a(&b.morph::<B>());
+
+    let y: Y<Zero> = Y {
+        v: vec![A::<Zero>::new(87), A::<Zero>::new(89)],
     };
 
     println!("{:#?}", y);
 
-    y.v[0].as_a().a();
+    y.v[0].a();
 }
 
 #[derive(Debug)]
-struct Y<const ID: char> {
-    v: Vec<Box<dyn AllA<ID>>>,
+struct Y<Anchor> {
+    v: Vec<A<Anchor>>,
 }
+
+#[derive(Debug)]
+struct Zero;
+#[derive(Debug)]
+struct D;
+#[derive(Debug)]
+struct B;
+#[derive(Debug)]
+struct O;
 
 // 2 ways this could be implemented
 // 1:
@@ -41,46 +58,85 @@ struct Y<const ID: char> {
 // which means we'll have to use Generics extensively
 //
 
-// again this doesnt work
-// you end up providin ga value for id for this to work
-// which completely misses the point
-trait AllA<const ID: char>: std::fmt::Debug {
-    fn as_a(&self) -> &A<ID> {
-        self.as_a()
-    }
-
-    fn as_mut_a(&mut self) -> &mut A<ID> {
-        self.as_mut_a()
-    }
-}
-
 // TODO: use PhantomData instead of associated const
-
-// fn from_cst0(&mut self, &A<'0'>) -> Self {
-//     A::<'0'> {
-//         ..self
-//     }
-// }
 
 // NOTE: maybe this can have a convergence type with a predecated associated const value that all
 // types converge back to
 
-impl<const ID: char> AllA<ID> for A<ID> {}
-
 struct InnerLogic;
 
 #[derive(Debug)]
-struct A<const ID: char> {
+struct A<Anchor> {
     id: u8,
+    phantom: std::marker::PhantomData<Anchor>,
+    allowed: Vec<&'static str>,
 }
 
-impl<const ID: char> A<ID> {
+// TODO: need a way to constrict A<Anchor> divergence types
+
+impl A<Zero> {
+    fn zero(id: u8) -> A<Zero> {
+        A::<Zero> {
+            id,
+            phantom: std::marker::PhantomData::<Zero>,
+            allowed: vec![],
+        }
+    }
+}
+
+fn s<A>() {
+    println!("{}", std::any::type_name::<A>());
+}
+
+// NOTE: Zero here is a placeholder, it is not an actual type, nor the actual type Zero
+impl<T> A<T> {
     const fn id(&self) -> u8 {
         self.id
     }
 
-    fn new(id: u8) -> Self {
-        Self { id }
+    fn new<U>(id: u8) -> A<U> {
+        A::<U> {
+            id,
+            phantom: std::marker::PhantomData::<U>,
+            allowed: vec![],
+        }
+    }
+
+    // TODO: should i consume or just take by ref and use temporarily
+    // TODO: do both, make a morph_ref, a morph_val,
+    // NOTE: this does not make a difference in the return type, that will always be an A<Anchor>
+    // owned value,
+    // the reason there is not a morph_mut_ref is the same, because we only return an owned value
+    fn morph<M>(&self) -> A<M> {
+        assert!(self.allowed.contains(&std::any::type_name::<M>()));
+        A::<M> {
+            phantom: std::marker::PhantomData::<M>,
+            id: self.id,
+            allowed: self.allowed.clone(),
+        }
+    }
+
+    fn morph_sib<'a, M>(&self, a: &'a mut A<M>) -> &'a mut A<M> {
+        assert!(self.allowed.contains(&std::any::type_name::<M>()));
+        *a = A::<M> {
+            phantom: std::marker::PhantomData::<M>,
+            id: self.id,
+            allowed: self.allowed.clone(),
+        };
+
+        a
+    }
+
+    fn allow<Y>(&mut self) {
+        self.allowed.push(std::any::type_name::<Y>());
+    }
+
+    fn converge(&self) -> A<Zero> {
+        A::<Zero> {
+            phantom: std::marker::PhantomData::<Zero>,
+            id: self.id,
+            allowed: vec![],
+        }
     }
 }
 
@@ -88,7 +144,7 @@ trait G<T> {
     fn a(&self);
 }
 
-impl G<InnerLogic> for A<'a'> {
+impl G<InnerLogic> for A<D> {
     fn a(&self) {
         println!("from G<InnerLogic>: a(): {}", self.id);
     }
@@ -96,8 +152,9 @@ impl G<InnerLogic> for A<'a'> {
 
 struct OverReach;
 
-impl<const ID: char> G<OverReach> for A<ID> {
+// NOTE: Anchor is a placeholder for a real type name
+impl<Anchor> G<OverReach> for A<Anchor> {
     fn a(&self) {
-        println!("this is overreach being implemented for all A<ID> types here");
+        println!("this is overreach being implemented for all A<Anchor> types here");
     }
 }
