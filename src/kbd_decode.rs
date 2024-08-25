@@ -4,7 +4,7 @@ use std::io::Read;
 use std::io::Write;
 
 #[derive(Debug)]
-enum Char {
+pub enum Char {
     CC(CC),
     Char(char),
 }
@@ -155,57 +155,17 @@ enum CC {
 }
 
 #[derive(Default)]
-struct Modifiers(u8);
+pub struct Modifiers(pub u8);
 
 impl std::fmt::Display for Modifiers {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self.0 {
-                0 => "None",
-                1 => "Shift",
-                2 => "Control",
-                3 => "Control_Shift",
-                4 => "Alt",
-                5 => "Shift_Alt",
-                6 => "Control_Alt",
-                7 => "Control_Shift_Alt",
-                _ => unreachable!("basic values are only control(2), shift(1) and alt(4),\r\nthere can only be these combinations of those bits"),
-            }
-        )
+        write!(f, "{}", self.as_text(),)
     }
 }
 
 impl std::fmt::Debug for Modifiers {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self.0 {
-                0 => "NONE",
-                1 => "SUPER",
-                2 => "CONTROL",
-                3 => "CONTROL_SUPER",
-                4 => "ALT",
-                5 => "SUPER_ALT",
-                6 => "CONTROL_ALT",
-                7 => "CONTROL_ALT_SUPER",
-                8 => "SHIFT",
-                9 => "SUPER_SHIFT",
-                10 => "CONTROL_SHIFT",
-                11 => "CONTROL_SUPER_SHIFT",
-                12 => "SHIFT_ALT",
-                13 => "SUPER_SHIFT_ALT",
-                14 => "CONTROL_SHIFT_ALT",
-                15 => "CONTROL_SHIFT_ALT_SUPER",
-
-                _ => unreachable!(
-                    "basic values are only control(2), shift(8), alt(4) and super(1)
-                    \r\nthere can only be these combinations of those bits"
-                ),
-            }
-        )
+        write!(f, "{}", self.as_text())
     }
 }
 
@@ -220,6 +180,32 @@ impl Modifiers {
         assert!(byte < 16);
 
         Self(byte)
+    }
+
+    fn as_text(&self) -> &str {
+        match self.0 {
+            0 => "NONE",
+            1 => "SUPER",
+            2 => "CONTROL",
+            3 => "CONTROL_SUPER",
+            4 => "ALT",
+            5 => "SUPER_ALT",
+            6 => "CONTROL_ALT",
+            7 => "CONTROL_ALT_SUPER",
+            8 => "SHIFT",
+            9 => "SUPER_SHIFT",
+            10 => "CONTROL_SHIFT",
+            11 => "CONTROL_SUPER_SHIFT",
+            12 => "SHIFT_ALT",
+            13 => "SUPER_SHIFT_ALT",
+            14 => "CONTROL_SHIFT_ALT",
+            15 => "CONTROL_SHIFT_ALT_SUPER",
+
+            _ => unreachable!(
+                "basic values are only control(2), shift(8), alt(4) and super(1)
+                    \r\n you did not present a valid combination of those values"
+            ),
+        }
     }
 
     fn from_or(bytes: &[u8]) -> Self {
@@ -250,7 +236,7 @@ impl Modifiers {
             57 => SUPER,
             _ => unreachable!(
                 "What manner of key combinations did 
-                you input to get this byte, sir?"
+                you input to get this byte, sir?",
             ),
         })
     }
@@ -272,8 +258,8 @@ impl Modifiers {
 
 #[derive(Debug)]
 pub struct KbdEvent {
-    char: Char,
-    modifiers: Modifiers,
+    pub char: Char,
+    pub modifiers: Modifiers,
 }
 
 impl Default for KbdEvent {
@@ -340,13 +326,12 @@ mod utf8_decoder {
         // if 1 of the 2 highest bits matches it wont give a 0,
         // despite only one bit matching
         // FIX
-        if bytes[0] & 0b1000_0000 == 0 && bytes[0] & 0b0100_0000 == 0 {
+        if is_utf82(bytes[0], bytes[1]) {
+            ke.char = Char::from_utf8(bytes);
+        } else {
             assert_eq!(27, bytes[0]);
             decode_1_byte(bytes[1], ke);
             ke.modifiers.or(ALT);
-        } else {
-            assert!(is_utf82(bytes[0], bytes[1]));
-            ke.char = Char::from_utf8(bytes);
         }
     }
 
@@ -356,8 +341,10 @@ mod utf8_decoder {
     // - fn keys
     fn decode_3_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 3);
-        // not a valid '3 bytes' utf8 first byte
-        if bytes[0] & 0b1110_0000 == 0 {
+        // valid '3 bytes' utf8 first byte
+        if is_utf83(bytes[0], bytes[1], bytes[2]) {
+            ke.char = Char::from_utf8(bytes);
+        } else {
             assert_eq!(bytes[0], 27);
             match bytes[1] {
                 91 => {
@@ -379,28 +366,31 @@ mod utf8_decoder {
                     bytes
                 ),
             }
-        } else {
-            assert!(is_utf83(bytes[0], bytes[1], bytes[3]));
-            ke.char = Char::from_utf8(bytes);
         }
     }
 
     fn decode_4_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 4);
-        // not a valid '4 bytes' utf8 first byte
-        if bytes[0] & 0b1111_0000 == 0 {
+        // BUG: the below check broke, so it takes to utf84 checks
+        // which do not hold true, since it is an esc seq
+        // then it crashes with failed assertion
+        // if not a valid '4 bytes' utf8 first byte
+
+        if is_utf84(bytes[0], bytes[1], bytes[2], bytes[3]) {
+            ke.char = Char::from_utf8(bytes);
+        } else {
             assert!(bytes[0] == 27 && bytes[1] == 91 && bytes[3] == 126);
             ke.char = Char::from_cc_extra(bytes[2]);
-        } else {
-            assert!(is_utf84(bytes[0], bytes[1], bytes[2], bytes[3]));
-            ke.char = Char::from_utf8(bytes);
         }
     }
 
     // not utf8 anymore
     fn decode_5_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 5);
-        assert!(bytes[0] == 27 && bytes[1] == 91 && bytes[4] == 126);
+        assert!(
+            bytes[0] == 27 && bytes[1] == 91 && bytes[4] == 126,
+            "{bytes:?}"
+        );
         assert!(bytes[2] == 50 || bytes[2] == 49);
         ke.char = Char::from_fn_key5(bytes[2], bytes[3]);
     }
@@ -409,6 +399,7 @@ mod utf8_decoder {
     // 6 bytes < 7 means that there is not a modifiers combination of SUPER + mod(s)
     fn decode_6_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         // escape sequence
+        assert_eq!(bytes.len(), 6);
         assert!(bytes[0] == 27 && bytes[1] == 91);
         assert!(bytes[3] == 59);
         assert!([49, 51, 53, 54].contains(&bytes[2]));
@@ -416,9 +407,16 @@ mod utf8_decoder {
             ke.modifiers = Modifiers::from_raw67(bytes[4]);
             ke.char = if [65, 66, 67, 68].contains(&bytes[5]) {
                 Char::from_arrow_key(bytes[5])
-            } else {
-                assert!([80, 81, 82, 83].contains(&bytes[5]));
+            } else if bytes[5] != 70 && bytes[5] != 72 {
+                assert!([80, 81, 82, 83].contains(&bytes[5]), "{bytes:?}");
                 Char::from_fn_key3(bytes[5])
+            } else {
+                assert!(bytes[5] == 70 || bytes[5] == 72);
+                if bytes[5] == 70 {
+                    Char::CC(CC::End)
+                } else {
+                    Char::CC(CC::Home)
+                }
             }
         } else {
             assert!([51, 53, 54, 49].contains(&bytes[2]));
@@ -485,6 +483,9 @@ mod utf8_decoder {
     // should actually get whole strings of bytes and check bytes to correctly decode them into
     // utf8
 
+    // this one is for one input entry
+    // need a  function first that split a Ctrl-v received utf8 stream of input into correct chunks
+    // of kbdevents
     pub fn decode_ki(bytes: &[u8]) -> KbdEvent {
         let mut ke: KbdEvent = Default::default();
         match bytes.len() {
@@ -507,6 +508,279 @@ mod utf8_decoder {
     // TODO: have to either use the file descriptor of stdin to know when stdin is empty or supply a
     // much bigger buffer (1024 or more) and not care about stdin content,
     // which is wasteful, considering most of the time we are getting only one ascii char  of input (1 byte)
+
+    // utf8 2 - 3 - 4 bytes values are easy to tell
+    // the problem is ascii, it is hard to tell if a value is just an ascii or an escape sequence
+    // 2 bytes esc seqs are always 27 then ascii byte
+    // escape sequences from 3 to 8 bytes long can always
+    // start with 27 then 91|79
+    // 3 bytes [27, 79, 80..83] are for f1..4
+    // everything else has 91 as a second byte
+    // and end with 126|80..83|65..68|70|72
+    // 80..83 are for f1..4: 3, 6, 7 bytes
+    // 65..68 are for the arrow keys: 3, 6, 7 bytes
+    // 70,72 are for the home and end keys: 6, 7 bytes
+    // 126 is for everything else: 4, 5, 7, 8 bytes
+    //
+    // [IMPORTANT]WARN: if we get 3 escape bytes in succession
+    // there is no way to tell if they belong to
+    // a lone Esc followed by an Alt Esc
+    // or an Alt Esc followed by a lone Esc
+    // this decoder will consider such bytes to be:
+    // a lone Esc followed by an Alt Esc combination
+    // NOTE: will make 2 fns
+    // the first returns a Vec<Result<KbdEvent, Error>>
+    // and the second returns a Result<Vec<KbdEvent>, Error>
+    // TODO: use next_chunk(4) instead of next
+    pub fn decode_ki_kai(bytes: Vec<u8>) -> Vec<Result<KbdEvent, er>> {
+        let mut v: Vec<Result<KbdEvent, er>> = vec![];
+
+        let mut bytes = bytes.into_iter();
+        while let Some(b0) = bytes.next() {
+            match b0 == 27 {
+                // this arm covers all escape sequence possibilities
+                true => {
+                    let b1 = bytes.next();
+                    if b1.is_none() {
+                        v.push(Ok(KbdEvent {
+                            char: Char::CC(CC::ESC),
+                            modifiers: Modifiers::from_byte(0),
+                        }));
+
+                        return v;
+                    }
+
+                    let b1 = b1.unwrap();
+
+                    let b2 = bytes.next();
+
+                    if b2.is_none() {
+                        let mut ke = Default::default();
+                        decode_2_bytes(&[b0, b1], &mut ke);
+                        v.push(Ok(ke));
+
+                        return v;
+                    }
+
+                    let b2 = b2.unwrap();
+
+                    match b1 == 91 || b1 == 79 {
+                        // surely 3 bytes
+                        true if b1 == 79 => {
+                            assert!((80..=83).contains(&b2));
+                            let mut ke = Default::default();
+                            decode_3_bytes(&[b0, b1, b2], &mut ke);
+
+                            v.push(Ok(ke));
+                        }
+                        // 3 to 8 bytes esc seq
+                        true if b1 == 91 => {
+                            let mut ke = Default::default();
+                            let b3 = bytes.next();
+                            if b3.is_none() {
+                                decode_3_bytes(&[b0, b1, b2], &mut ke);
+                                v.push(Ok(ke));
+
+                                return v;
+                            }
+
+                            let b3 = b3.unwrap();
+                            match b3 {
+                                126 => {
+                                    decode_4_bytes(&[b0, b1, b2, b3], &mut ke);
+                                    v.push(Ok(ke));
+                                }
+
+                                59 => {
+                                    let b4 = bytes.next();
+                                    let b5 = bytes.next();
+                                    if b4.is_none() || b5.is_none() {
+                                        v.push(Err(er::other(
+                                            "there should have been a 5th and 6th bytes here",
+                                        )));
+                                        return v;
+                                    }
+
+                                    let (b4, b5) = (b4.unwrap(), b5.unwrap());
+
+                                    let b6 = bytes.next();
+
+                                    if b6.is_none() {
+                                        decode_6_bytes(&[b0, b1, b2, b3, b4, b5], &mut ke);
+                                        v.push(Ok(ke));
+
+                                        return v;
+                                    }
+
+                                    let b6 = b6.unwrap();
+
+                                    match b6 {
+                                        126 | 80..=83 | 70 | 72 | 65..=68 => {
+                                            decode_7_bytes(&[b0, b1, b2, b3, b4, b5, b6], &mut ke);
+                                            v.push(Ok(ke));
+                                        }
+                                        _ => {
+                                            decode_6_bytes(&[b0, b1, b2, b3, b4, b5], &mut ke);
+                                            bytes = [b6]
+                                                .into_iter()
+                                                .chain(bytes)
+                                                .collect::<Vec<u8>>()
+                                                .into_iter();
+                                            v.push(Ok(ke));
+                                        }
+                                    }
+                                }
+                                _ => {
+                                    let b4 = bytes.next();
+                                    if b4.is_none() {
+                                        v.push(Err(er::other(
+                                            "there should have been a 5th and 6th bytes here",
+                                        )));
+                                        return v;
+                                    }
+                                    let b4 = b4.unwrap();
+
+                                    match b4 == 126 {
+                                        true => {
+                                            decode_5_bytes(&[b0, b1, b2, b3, b4], &mut ke);
+                                            v.push(Ok(ke));
+                                        }
+                                        false => {
+                                            let (b5, b6) = (bytes.next(), bytes.next());
+                                            if b5.is_none() || b6.is_none() {
+                                                v.push(Err(er::other(
+                                            "there should have been a 5th and 6th bytes here",
+                                        )));
+                                                return v;
+                                            }
+
+                                            let (b5, b6) = (b5.unwrap(), b6.unwrap());
+                                            match b6 {
+                                                126 => {
+                                                    decode_7_bytes(
+                                                        &[b0, b1, b2, b3, b4, b5, b6],
+                                                        &mut ke,
+                                                    );
+                                                    v.push(Ok(ke));
+                                                }
+                                                48..=54 => {
+                                                    let b7 = bytes.next();
+                                                    if b7.is_none() {
+                                                        v.push(Err(er::other(
+                                            "there should have been a 5th and 6th bytes here",
+                                        )));
+                                                        return v;
+                                                    }
+                                                    let b7 = b7.unwrap();
+                                                    decode_8_bytes(
+                                                        &[b0, b1, b2, b3, b4, b5, b6, b7],
+                                                        &mut ke,
+                                                    );
+                                                    v.push(Ok(ke));
+                                                }
+                                                _ => unreachable!("you cant get here:{b6}"),
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        false => {
+                            v.push(Ok(KbdEvent {
+                                char: Char::CC(CC::ESC),
+                                modifiers: Modifiers::from_byte(0),
+                            }));
+                            bytes = [b1, b2]
+                                .into_iter()
+                                .chain(bytes)
+                                .collect::<Vec<u8>>()
+                                .into_iter();
+                        }
+                        _ => unreachable!("im impossible to reach"),
+                    }
+                }
+                // this arm covers all utf8 possibilities
+                false => match is_utf81(b0) {
+                    true => v.push(Ok({
+                        let mut ke = Default::default();
+                        decode_1_byte(b0, &mut ke);
+
+                        ke
+                    })),
+                    false => {
+                        let b1 = bytes.next();
+                        if b1.is_none() {
+                            v.push(Err(er::other("not a valid utf8 nor an esc seq")));
+
+                            return v;
+                        }
+
+                        let b1 = b1.unwrap();
+
+                        match is_utf82(b0, b1) {
+                            true => {
+                                let mut ke = Default::default();
+                                decode_2_bytes(&[b0, b1], &mut ke);
+
+                                v.push(Ok(ke));
+                            }
+                            false => {
+                                let b2 = bytes.next();
+
+                                if b2.is_none() {
+                                    v.push(Err(er::other("not a valid utf8 nor an esc seq")));
+
+                                    return v;
+                                }
+
+                                let b2 = b2.unwrap();
+
+                                match is_utf83(b0, b1, b2) {
+                                    true => {
+                                        let mut ke = Default::default();
+                                        decode_3_bytes(&[b0, b1, b2], &mut ke);
+
+                                        v.push(Ok(ke));
+                                    }
+                                    // TODO: decode_n_bytes fns should be split on utf8 and esc
+                                    // seqs fns
+                                    false => {
+                                        let b3 = bytes.next();
+
+                                        if b3.is_none() {
+                                            v.push(Err(er::other(
+                                                "not a valid utf8 nor an esc seq",
+                                            )));
+
+                                            return v;
+                                        }
+
+                                        let b3 = b3.unwrap();
+
+                                        match is_utf84(b0, b1, b2, b3) {
+                                            true => {
+                                                let mut ke = Default::default();
+                                                decode_4_bytes(&[b0, b1, b2, b3], &mut ke);
+
+                                                v.push(Ok(ke));
+                                            }
+                                            false => v.push(Err(er::other(
+                                                "not a valid utf8 nor an esc seq",
+                                            ))),
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+            }
+        }
+
+        v
+    }
+
+    // NOTE: the problem with escape sequence is that their length is varying
 
     fn is_utf81(byte: u8) -> bool {
         byte < 128
@@ -596,7 +870,7 @@ mod utf8_decoder {
 
 use utf8_decoder::*;
 
-pub use utf8_decoder::decode_ki;
+pub use utf8_decoder::{decode_ki, decode_ki_kai};
 
 pub fn kbd_read() {
     let mut buf: [u8; 8] = [0; 8];
