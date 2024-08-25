@@ -486,6 +486,8 @@ mod utf8_decoder {
     // this one is for one input entry
     // need a  function first that split a Ctrl-v received utf8 stream of input into correct chunks
     // of kbdevents
+    // INFO: this only works under the premise of receiving 1 input at once
+    // basically no ctrl-v or any way to dump multiple chars of input at once
     pub fn decode_ki(bytes: &[u8]) -> KbdEvent {
         let mut ke: KbdEvent = Default::default();
         match bytes.len() {
@@ -532,6 +534,8 @@ mod utf8_decoder {
     // the first returns a Vec<Result<KbdEvent, Error>>
     // and the second returns a Result<Vec<KbdEvent>, Error>
     // TODO: use next_chunk(4) instead of next
+    // INFO: this handles the limitation of decode_ki
+    // as this fn can handle a ctrl-v of input
     pub fn decode_ki_kai(bytes: Vec<u8>) -> Vec<Result<KbdEvent, er>> {
         let mut v: Vec<Result<KbdEvent, er>> = vec![];
 
@@ -787,21 +791,18 @@ mod utf8_decoder {
     }
 
     fn is_utf82(byte1: u8, byte2: u8) -> bool {
-        (byte1 & 0b1100_0000 >= 192 && byte1 & 0b1100_0000 < 224)
-            && (byte2 & 0b1000_0000 >= 128 && byte2 & 0b1000_0000 < 192)
+        (byte1 >= 192 && byte1 < 224) && (byte2 >= 128 && byte2 < 192)
     }
 
     fn is_utf83(b1: u8, b2: u8, b3: u8) -> bool {
-        (b1 & 0b1110_0000 >= 224 && b1 & 0b1110_0000 < 240)
-            && (b2 & 0b1000_0000 >= 128 && b2 & 0b1000_0000 < 192)
-            && (b3 & 0b1000_0000 >= 128 && b3 & 0b1000_0000 < 192)
+        (b1 >= 224 && b1 < 240) && (b2 >= 128 && b2 < 192) && (b3 >= 128 && b3 < 192)
     }
 
     fn is_utf84(b1: u8, b2: u8, b3: u8, b4: u8) -> bool {
-        (b1 & 0b1111_0000 >= 240 && b1 & 0b1111_0000 < 248)
-            && (b2 & 0b1000_0000 >= 128 && b2 & 0b1000_0000 < 192)
-            && (b3 & 0b1000_0000 >= 128 && b3 & 0b1000_0000 < 192)
-            && (b4 & 0b1000_0000 >= 128 && b4 & 0b1000_0000 < 192)
+        (b1 >= 240 && b1 < 248)
+            && (b2 >= 128 && b2 < 192)
+            && (b3 >= 128 && b3 < 192)
+            && (b4 >= 128 && b4 < 192)
     }
 
     // utf8 string decoder
@@ -872,56 +873,59 @@ use utf8_decoder::*;
 
 pub use utf8_decoder::{decode_ki, decode_ki_kai};
 
-pub fn kbd_read() {
-    let mut buf: [u8; 8] = [0; 8];
-    let mut sol = std::io::stdout().lock();
+// TODO: module needs a bit of refactoring
+// particularly decode_ki_kai is a big mess of verbosity
 
-    let mut input_queue: Vec<u8> = Vec::new();
-    let mut si = std::io::stdin().lock();
-
-    // getchar just gets what was pressed
-    // it does not detect the press
-    // getchar();
-
-    let fps = 60;
-    let counter = 1000 / fps;
-
-    while let Ok(n) = si.read(&mut buf) {
-        // crossterm's kbd_read (real name event::read()) did not fare any better that my
-        // simple stdin reading at detecting the CTRL modifier when used with trappy code points
-        // this block inside the loop is the read keyboard key press
-
-        // print!("\r\n{:?}", crossterm::event::read());
-        // _ = sol.flush();
-
-        // first we create an empty input stream input_queue
-        // then we read from stdin into the buffer buf [u8; 8]
-        // then we filter out nil values (untouched)
-        // then we push bytes to stream
-        // finally stream can decode bytes into proper unicode chars and the user receives them and
-        // uses them as they see fit
-        //
-
-        // let start = std::time::Instant::now();
-        std::thread::sleep(std::time::Duration::from_millis(counter));
-
-        if n > 0 {
-            print!("stdout len: {}", n);
-            let mut filtered = filter_nil(&buf);
-            // input_queue.append(&mut filtered);
-            print!(
-                "raw_buffer: {:?}\r\nbytes: {:?}\r\ndecoded: {:?}\r\n",
-                buf,
-                filtered,
-                decode_ki(&filtered) // decode_utf8_string(&input_queue) // input_queue
-            );
-
-            _ = sol.flush();
-
-            buf = Default::default();
-        }
-    }
-}
+// pub fn kbd_read() {
+//     let mut buf: [u8; 8] = [0; 8];
+//     let mut sol = std::io::stdout().lock();
+//
+//     let mut input_queue: Vec<u8> = Vec::new();
+//     let mut si = std::io::stdin().lock();
+//
+//     // getchar just gets what was pressed
+//     // it does not detect the press
+//     // getchar();
+//
+//     let fps = 60;
+//     let counter = 1000 / fps;
+//
+//     while let Ok(n) = si.read(&mut buf) {
+//         // crossterm's kbd_read (real name event::read()) did not fare any better that my
+//         // simple stdin reading at detecting the CTRL modifier when used with trappy code points
+//         // this block inside the loop is the read keyboard key press
+//
+//         // print!("\r\n{:?}", crossterm::event::read());
+//         // _ = sol.flush();
+//
+//         // first we create an empty input stream input_queue
+//         // then we read from stdin into the buffer buf [u8; 8]
+//         // then we filter out nil values (untouched)
+//         // then we push bytes to stream
+//         // finally stream can decode bytes into proper unicode chars and the user receives them and
+//         // uses them as they see fit
+//         //
+//
+//         // let start = std::time::Instant::now();
+//         std::thread::sleep(std::time::Duration::from_millis(counter));
+//
+//         if n > 0 {
+//             print!("stdout len: {}", n);
+//             let mut filtered = filter_nil(&buf);
+//             // input_queue.append(&mut filtered);
+//             print!(
+//                 "raw_buffer: {:?}\r\nbytes: {:?}\r\ndecoded: {:?}\r\n",
+//                 buf,
+//                 filtered,
+//                 decode_ki(&filtered) // decode_utf8_string(&input_queue) // input_queue
+//             );
+//
+//             _ = sol.flush();
+//
+//             buf = Default::default();
+//         }
+//     }
+// }
 
 use std::io::BufRead;
 use std::io::StdinLock;
