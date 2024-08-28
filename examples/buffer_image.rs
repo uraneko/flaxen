@@ -1,7 +1,7 @@
-use ragout::Term;
+use ragout::object_tree::Term;
 
 fn main() {
-    let term = Term::<'w'>::new();
+    let term = Term::new(5);
 
     term.print_buf();
 }

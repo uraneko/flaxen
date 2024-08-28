@@ -23,15 +23,15 @@ mod tests {
 
 pub trait EventsConclusion {}
 
-enum EventId {}
-enum Edges {}
-
 pub trait EventsTrigger {}
 
-// P is a PlaceHolder type that allows any crate to implement this trait for types native to
+// P is the permit type
+// an instance of a type that implements events can only use a certain fire implementation if the str version of P
+// is contained within said instance's registry
+// A is an anchor type that allows any crate to implement this trait for types native to
 // this crate
 // T is the trigger type which will be matched on to trigger an event
-pub trait Events<P, T>: HasId
+pub trait Events<P, A, T>
 where
     T: EventsTrigger,
 {
@@ -45,11 +45,11 @@ where
     /// on
     /// type T is so that the trait can be implemented for the same type many times
     /// the default way of doing this is that for every impl of Events for the same type, you  creating an empty struct type and use as the generic of that particular impl
-    fn fire(&self, input: T) -> impl EventsConclusion;
+    fn fire(&mut self, input: T) -> impl EventsConclusion;
     // fn id(&self) -> EventId;
     // fn validate(&self);
 }
 
-pub trait HasId {
-    fn id(&self) -> &str;
+enum CoreEvents {
+    WindowResized,
 }

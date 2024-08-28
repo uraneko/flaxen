@@ -1,17 +1,22 @@
 use ragout::commissioner::*;
 use ragout::container::*;
 use ragout::events::*;
+use ragout::object_tree::*;
 use ragout::*;
 
 fn main() {
-    let init = InitEvent::Text(true);
+    let mut ot = ObjectTree::new();
 
-    let term = Term::<'s'>::new();
+    ot.fire(InitEvent::Container(&[0, 9]));
+    ot.fire(InitEvent::NonEdit(&[0, 9, 5]));
 
-    let iti = term.fire(init).unwrap();
-    let Err(iti) = iti else {
-        unreachable!("wrong type initialized")
-    };
+    let mut writer = std::io::stdout().lock();
 
-    println!("{:?}", iti);
+    let term = ot.term_ref_mut(0).unwrap();
+
+    term.process();
+    term.clear(&mut writer);
+    term.render(&mut writer);
+
+    // println!("{:?}", ot);
 }

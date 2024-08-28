@@ -1,7 +1,7 @@
-use crate::container::Input;
+use crate::object_tree::Text;
 use std::io::{StdoutLock, Write};
 
-impl<'a, const CLASS: char> Input<'a, CLASS> {
+impl Text {
     // submit user input to the program
     fn submit(&mut self) {}
 }

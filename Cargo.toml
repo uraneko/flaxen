@@ -24,8 +24,13 @@ name = "bad"
 path = "examples/bad.rs"
 
 [[example]]
+name = "events2"
+path = "examples/events2.rs"
+
+[[example]]
 name = "bufimg"
 path = "examples/buffer_image.rs"
+
 
 [features]
 # default = ["lib", "styled"]

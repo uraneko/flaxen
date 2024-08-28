@@ -455,7 +455,6 @@ mod utf8_decoder {
                     49 if bytes[6] == 70 => ke.char = Char::CC(CC::End),
                     49 if bytes[6] == 72 => ke.char = Char::CC(CC::Home),
                     51 | 53 | 54 if bytes[6] == 126 => ke.char = Char::from_cc_extra(bytes[2]),
-                    // TODO: FIX: handle f1 -> 4 + super + mods
                     49 if [80, 81, 82, 83].contains(&bytes[6]) => {
                         ke.char = Char::from_fn_key3(bytes[6])
                     }
@@ -505,12 +504,6 @@ mod utf8_decoder {
         ke
     }
 
-    // TODO: first study the nature of the bytes then either write a utf8 char or one of the other
-    // cases
-    // TODO: have to either use the file descriptor of stdin to know when stdin is empty or supply a
-    // much bigger buffer (1024 or more) and not care about stdin content,
-    // which is wasteful, considering most of the time we are getting only one ascii char  of input (1 byte)
-
     // utf8 2 - 3 - 4 bytes values are easy to tell
     // the problem is ascii, it is hard to tell if a value is just an ascii or an escape sequence
     // 2 bytes esc seqs are always 27 then ascii byte
@@ -530,10 +523,6 @@ mod utf8_decoder {
     // or an Alt Esc followed by a lone Esc
     // this decoder will consider such bytes to be:
     // a lone Esc followed by an Alt Esc combination
-    // NOTE: will make 2 fns
-    // the first returns a Vec<Result<KbdEvent, Error>>
-    // and the second returns a Result<Vec<KbdEvent>, Error>
-    // TODO: use next_chunk(4) instead of next
     // INFO: this handles the limitation of decode_ki
     // as this fn can handle a ctrl-v of input
     pub fn decode_ki_kai(bytes: Vec<u8>) -> Vec<Result<KbdEvent, er>> {
@@ -874,7 +863,7 @@ use utf8_decoder::*;
 pub use utf8_decoder::{decode_ki, decode_ki_kai};
 
 // TODO: module needs a bit of refactoring
-// particularly decode_ki_kai is a big mess of verbosity
+// particularly decode_ki_kai is a big mess of redundency
 
 // pub fn kbd_read() {
 //     let mut buf: [u8; 8] = [0; 8];

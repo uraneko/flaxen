@@ -1,144 +1,133 @@
-use crate::container::Space;
-use crate::container::{IDError, IDKind};
 use crate::events::{Events, EventsConclusion, EventsTrigger};
 use crate::kbd_decode::{decode_ki, read_ki, KbdEvent};
-use crate::Term;
+use crate::object_tree::{ObjectTree, Term, Zero};
 use std::collections::HashMap;
 use std::io::{StdinLock, StdoutLock};
+//
+// // NOTE: to run an event, all that is needed is that the commissioner knows at the time of the
+// // event loop what events need to be run: active event id list
+// // how to call those events: access to event call syntax, e.g.,
+// // <Term as Events<SomeAnchor>>::fire(term, trigger)
+// // themes application and removal should be events based
+// // struct EventsQueue<P, T, IE, R>
+// // where
+// //     IE: Events<P, T>,
+// //     T: EventsTrigger,
+// //     R: EventsConclusion,
+// // (Vec<fn<>>)
+//
+// // TODO: implement a way to do events and themes
+//
+// // WARN: this wont work
+// // will NOT allow for different Ts or Rs, etc.,
+// struct EventsDocument<P, T, IE, R>
+// where
+//     IE: Events<P, T>,
+//     T: EventsTrigger,
+//     R: EventsConclusion,
+// {
+//     id: ID,
+//     active: bool,
+//     asyncness: bool,
+//     f: fn(IE, T) -> R,
+//     phantom: std::marker::PhantomData<P>,
+// }
+//
+// impl<'a, P, T, IE, R> EventsDocument<P, T, IE, R>
+// where
+//     IE: Events<P, T>,
+//     T: EventsTrigger,
+//     R: EventsConclusion,
+// {
+//     fn new(asyncness: bool, id: ID, f: fn(IE, T) -> R) -> Self {
+//         Self {
+//             active: true,
+//             asyncness,
+//             id,
+//             f,
+//             phantom: std::marker::PhantomData::<P>,
+//         }
+//     }
+// }
+//
 
-use crate::ID;
-
-struct EventsQueue<'a, 'b, P, T, IE, R>
-where
-    IE: Events<P, T>,
-    T: EventsTrigger,
-    R: EventsConclusion,
-{
-    queue: HashMap<ID<'a>, Vec<EventsDocument<'b, P, T, IE, R>>>,
+// impl this for the object tree
+pub trait Commissioner {
+    fn render(&self);
 }
 
-// WARN: this wont work
-// will NOT allow for different Ts or Rs, etc.,
-struct EventsDocument<'a, P, T, IE, R>
-where
-    IE: Events<P, T>,
-    T: EventsTrigger,
-    R: EventsConclusion,
-{
-    id: ID<'a>,
-    active: bool,
-    asyncness: bool,
-    f: fn(IE, T) -> R,
-    phantom: std::marker::PhantomData<P>,
+impl Commissioner for ObjectTree {
+    fn render(&self) {}
 }
 
-impl<'a, P, T, IE, R> EventsDocument<'a, P, T, IE, R>
-where
-    IE: Events<P, T>,
-    T: EventsTrigger,
-    R: EventsConclusion,
-{
-    fn new(asyncness: bool, id: ID<'a>, f: fn(IE, T) -> R) -> Self {
-        Self {
-            active: true,
-            asyncness,
-            id,
-            f,
-            phantom: std::marker::PhantomData::<P>,
-        }
-    }
-}
+// TODO: change registry to take Permit, Anchor, Trigger and Conclusion strs combinations
+// if a combination is there you run the event for that object in the event loop
 
-pub struct Commissioner;
+//
+// impl Commissioner {
+//     pub async fn process(ke: &KbdEvent) {}
+//
+//     pub fn clear(writer: &mut StdoutLock) {}
+//
+//     pub fn render(writer: &mut StdoutLock) {}
+// }
+//
+// struct InnerLogic;
+//
+// impl Commissioner {
+//     fn bind<P, T, R, IE>(events: &mut EventsQueue<P, T, IE, R>, f: fn(IE, T) -> R, eid: ID, id: ID)
+//     where
+//         // F: Fn(IE, T) -> R,
+//         IE: Events<P, T>,
+//         T: EventsTrigger,
+//         R: EventsConclusion,
+//     {
+//         let doc = EventsDocument::new(false, eid, f);
+//
+//         if events.queue.contains_key(&id) {
+//             events.queue.get_mut(&id).unwrap().push(doc);
+//         } else {
+//             events.queue.insert(id, vec![doc]);
+//         }
+//     }
+//
+//     fn bind_async<P, T, R, IE>(
+//         events: &mut EventsQueue<P, T, IE, R>,
+//         f: fn(IE, T) -> R,
+//         eid: ID,
+//         id: ID,
+//     ) where
+//         // F: Fn(IE, T) -> R,
+//         IE: Events<P, T>,
+//         T: EventsTrigger,
+//         R: EventsConclusion,
+//     {
+//         let doc = EventsDocument::new(true, eid, f);
+//
+//         if events.queue.contains_key(&id) {
+//             events.queue.get_mut(&id).unwrap().push(doc);
+//         } else {
+//             events.queue.insert(id, vec![doc]);
+//         }
+//     }
+//
+//     fn release() {}
+// }
+//
+// // TODO:
+// // events for
+// // space logic,
+// // id logic,
+// // term, components, input and noneditable logic,
+// // have to be implemented by this crate
 
-impl Commissioner {
-    pub fn authorize_id(ik: IDKind) -> Result<u8, IDError> {
-        match ik {
-            IDKind::TextInput => Ok(0), // checks for self last TextId and returns the next one
-            IDKind::TextNE => Ok(0),    // checks for self last TextId and returns the next one
-            IDKind::Events => Ok(0),
-            IDKind::Container => Ok(0),
-            IDKind::BufferImage => Err(IDError::ProgramIsUnique),
-        }
-    }
-
-    pub async fn process<'t1, 't2, const CLASS: char>(
-        ke: &KbdEvent,
-        term: &mut Term<'t1, 't2, CLASS>,
-    ) {
-    }
-
-    pub fn clear(writer: &mut StdoutLock) {}
-
-    pub fn render<'t1, 't2, const CLASS: char>(
-        writer: &mut StdoutLock,
-        term: &mut Term<'t1, 't2, CLASS>,
-    ) {
-    }
-}
-
-struct InnerLogic;
-
-impl Commissioner {
-    fn bind<'eq1, 'eq2, P, T, R, IE>(
-        events: &mut EventsQueue<'eq1, 'eq2, P, T, IE, R>,
-        f: fn(IE, T) -> R,
-        eid: ID<'eq2>,
-        id: ID<'eq1>,
-    ) where
-        // F: Fn(IE, T) -> R,
-        IE: Events<P, T>,
-        T: EventsTrigger,
-        R: EventsConclusion,
-    {
-        let doc = EventsDocument::new(false, eid, f);
-
-        if events.queue.contains_key(&id) {
-            events.queue.get_mut(&id).unwrap().push(doc);
-        } else {
-            events.queue.insert(id, vec![doc]);
-        }
-    }
-
-    fn bind_async<'eq1, 'eq2, P, T, R, IE>(
-        events: &mut EventsQueue<'eq1, 'eq2, P, T, IE, R>,
-        f: fn(IE, T) -> R,
-        eid: ID<'eq2>,
-        id: ID<'eq1>,
-    ) where
-        // F: Fn(IE, T) -> R,
-        IE: Events<P, T>,
-        T: EventsTrigger,
-        R: EventsConclusion,
-    {
-        let doc = EventsDocument::new(true, eid, f);
-
-        if events.queue.contains_key(&id) {
-            events.queue.get_mut(&id).unwrap().push(doc);
-        } else {
-            events.queue.insert(id, vec![doc]);
-        }
-    }
-
-    fn release() {}
-}
-
-// TODO:
-// events for
-// space logic,
-// id logic,
-// term, components, input and noneditable logic,
-// have to be implemented by this crate
-
-type comr = Commissioner;
-
-async fn ragout<'a, 'b, P, T, IE, R, const CLASS: char>(
+async fn ragout<P, A, T, IE, R>(
     reader: &mut StdinLock<'static>,
     input: &mut Vec<u8>,
-    term: &mut Term<'a, 'b, CLASS>,
+    term: &mut Term,
     writer: &mut StdoutLock<'static>,
 ) where
-    IE: Events<P, T>,
+    IE: Events<P, A, T>,
     T: EventsTrigger,
     R: EventsConclusion,
 {
@@ -149,47 +138,40 @@ async fn ragout<'a, 'b, P, T, IE, R, const CLASS: char>(
         let input = decode_ki(read_ki(reader, input));
 
         std::thread::sleep(std::time::Duration::from_millis(refresh));
-        comr::process(&input, term).await;
-        comr::clear(writer);
-        comr::render(writer, term);
+        // Commissioner::process(&input).await;
+        // Commissioner::clear(writer);
+        // Commissioner::render(writer);
     }
 }
 
 pub enum InitEvent {
-    Term,
-    Container,
-    Text(bool),
+    Term(u8),
+    Container(&'static [u8]),
+    Input(&'static [u8]),
+    NonEdit(&'static [u8]),
 }
 
 impl EventsTrigger for InitEvent {}
-impl<'a, 'b, const CLASS: char> EventsConclusion
-    for Option<Result<Container<'a, 'b, CLASS>, Text<'b, CLASS>>>
-{
-}
 
 pub struct CreateObject;
 
-use crate::container::{Container, Input, NonEditable, Text};
+struct Containerd;
 
-use crate::events::HasId;
+impl EventsConclusion for () {}
 
-impl<'a, 'b, const CLASS: char> HasId for Term<'a, 'b, CLASS> {
-    fn id(&self) -> &'static str {
-        self.id
-    }
-}
+pub struct Anchor;
 
-impl<'a, 'b> EventsConclusion for Option<Result<Container<'a, 'b, 'C'>, Text<'b, 'I'>>> {}
-
-impl<'a, 'b, const CLASS: char> Events<CreateObject, InitEvent> for Term<'a, 'b, CLASS> {
-    fn fire(&self, input: InitEvent) -> Option<Result<Container<'a, 'b, 'C'>, Text<'b, 'I'>>> {
-        match input {
-            InitEvent::Term => None,
-            InitEvent::Container => Some(Ok(Container::new("T0C0", Space::default()))),
-            InitEvent::Text(editable) => Some(Err(match editable {
-                true => Text::Input(Input::new("T0C0I0")),
-                false => Text::NonEditable(NonEditable::new("T0C0NE0")),
-            })),
+impl Events<Anchor, CreateObject, InitEvent> for ObjectTree {
+    fn fire(&mut self, input: InitEvent) {
+        if match input {
+            InitEvent::Term(term) => self.term(term),
+            InitEvent::Container(id) => self.container(id),
+            InitEvent::Input(id) => self.input(id),
+            InitEvent::NonEdit(id) => self.nonedit(id),
+        }
+        .is_err()
+        {
+            eprintln!("error while pushing new object");
         }
     }
 }

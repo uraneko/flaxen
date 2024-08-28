@@ -1,13 +1,19 @@
-fn init<'a, 'b, const CLASS: char>() -> (
+// if feature 'presets' is on then the crate only compiles the basic presets,
+// in this case, cache is only a vec of History values that get saved to a file,
+// otherwise cache is a libsql db that can house many caches, not just input Histories
+
+use crate::object_tree::ObjectTree;
+
+fn init() -> (
     std::io::StdinLock<'static>,
     std::io::StdoutLock<'static>,
-    crate::Term<'a, 'b, CLASS>,
+    ObjectTree,
     String,
 ) {
     (
         std::io::stdin().lock(),
         std::io::stdout().lock(),
-        crate::Term::new(),
+        ObjectTree::new(),
         String::new(),
     )
 }
