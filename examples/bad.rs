@@ -10,16 +10,18 @@ fn main() {
     ot.fire(InitEvent::Container(&[0, 9], 3, 3, 21, 6));
     ot.fire(InitEvent::NonEdit(
         &[0, 9, 5],
-        12,
-        1,
-        5,
-        1,
-        &['h', 'e', 'l', 'l', 'o', ' ', 't', 'e', 'r', 'm'],
+        12, // x0
+        1,  // y0
+        5,  // w
+        1,  // h
+        // border *
+        // padding outer: 1 1 1 1
+        &['h', 'e', 'l', 'l', 'o'],
     ));
     // TODO: if a value is given for text at initialization, it needs to be checked for bounds
     // validity,
 
-    println!("{:#?}", ot.container_ref(&[0, 9]));
+    // println!("{:#?}", ot.container_ref(&[0, 9]));
 
     // ot.container_ref_mut(&[0, 9]).unwrap().items.push(Text {
     //     value: vec!['s', 'e', 'c', 'o', 'n', 'd', ' ', 'i', 't', 'e', 'm'],
@@ -34,6 +36,6 @@ fn main() {
 
     let term = ot.term_ref_mut(0).unwrap();
 
-    term.clear(&mut writer);
+    // term.clear(&mut writer);
     term.render(&mut writer);
 }

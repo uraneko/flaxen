@@ -3,17 +3,17 @@ use crate::space_awareness::{Border, Padding};
 
 use std::io::{StdoutLock, Write};
 
-trait Renderer {
-    fn render(&self, writer: &mut StdoutLock) {}
-    fn clear(&self, writer: &mut StdoutLock) {}
-    fn place(&mut self, writer: &mut StdoutLock, x: u16, y: u16) {}
-    fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
-        (vec![], [0, 0])
-    }
-    fn decorate(&self) -> [u16; 2] {
-        [0, 0]
-    }
-}
+// trait Renderer {
+//     fn render(&self, writer: &mut StdoutLock) {}
+//     fn clear(&self, writer: &mut StdoutLock) {}
+//     fn place(&mut self, writer: &mut StdoutLock, x: u16, y: u16) {}
+//     fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
+//         (vec![], [0, 0])
+//     }
+//     fn decorate(&self) -> [u16; 2] {
+//         [0, 0]
+//     }
+// }
 
 // NOTE: an object can not be initialized unless
 // its id is valid
@@ -408,7 +408,6 @@ impl Text {
         let [wx, mut hx] = self.decorate();
 
         lines.resize((wx * hx) as usize, None);
-        println!("{}", lines.len());
 
         self.process(&mut lines);
 
@@ -510,26 +509,36 @@ impl Text {
             let v0 = pot + 1 + pit;
             // the line the value ends on
             let v1 = v0 + self.h;
+            println!("{}: v0 = {}, v1 = {}", line!(), v0, v1,);
+            println!("{}: wextra = {}, hxtra = {}", line!(), wx, hx);
 
             // first line of border
             // lines of padding times number of cells in one line
             let mut idx = pot * wx;
             let mut line = pot;
+            println!("{}: idx = {}, line = {}", line!(), idx, line,);
             // we skip the outer left padding values
             idx += pol;
+
+            log_buf(&lines, wx, hx);
+
             // we fill value length + inner padding right + left with border value
-            for i in 0..self.w + pir + pil {
-                lines[i as usize] = Some(c);
+            for i in 0..pil + 1 + self.w + pir + 1 {
+                lines[idx as usize] = Some(c);
                 idx += 1;
             }
+            // println!("lines ==> {:?}", lines);
+            log_buf(&lines, wx, hx);
             // we skipp the outer right padding
             idx += por;
             // first bordered line ends
             line += 1;
+            println!("{}: idx = {}, line = {}", line!(), idx, line,);
 
             // handle the pre value lines
             // every iteration is a line
-            loop {
+            // we are still not in front of the value lines
+            while line < v0 {
                 // new line we skip padding outer left
                 idx += pol;
                 // border cell
@@ -539,18 +548,18 @@ impl Text {
                 idx += pil + self.w + pir;
                 // border cell
                 lines[idx as usize] = Some(c);
-                // skipp outer right padding
+                idx += 1;
+                // skip outer right padding
                 idx += por;
 
                 line += 1;
-                // we are in front of the value lines
-                if line == v0 {
-                    break;
-                }
+                println!("{}: idx = {}, line = {}", line!(), idx, line,);
+                log_buf(&lines, wx, hx);
             }
             // handle the value lines
             // every iteration is a line
-            loop {
+            // we are not out of the value lines yet
+            while line < v1 {
                 // new line we skip padding outer left
                 idx += pol;
                 // border cell
@@ -567,17 +576,18 @@ impl Text {
                 idx += pir;
                 // border cell
                 lines[idx as usize] = Some(c);
+                idx += 1;
                 // skip outer right padding
                 idx += por;
 
                 line += 1;
-                // we are out of the value lines
-                if line == v1 {
-                    break;
-                }
+                println!("{}: idx = {}, line = {}", line!(), idx, line,);
+                log_buf(&lines, wx, hx);
             }
             // we left value lines
-            loop {
+
+            // while we are not in front of the second full border line yet
+            while line < pot + 1 + pit + self.h + pib {
                 // new line we skip padding outer left
                 idx += pol;
                 // border cell
@@ -587,29 +597,30 @@ impl Text {
                 idx += pil + self.w + pir;
                 // border cell
                 lines[idx as usize] = Some(c);
+                idx += 1;
                 // skipp outer right padding
                 idx += por;
 
                 line += 1;
-                // we are in front of the second full border line
-                if line == pot + 1 + pit + self.h + pib {
-                    break;
-                }
             }
 
             // second and last line of full border
             // we skip the outer left padding values
             idx += pol;
             // we fill value length + inner padding right + left with border value
-            for i in 0..self.w + pir + pil {
-                lines[i as usize] = Some(c);
+            for i in 0..pil + 1 + self.w + pir + 1 {
+                lines[idx as usize] = Some(c);
                 idx += 1;
             }
+            println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            log_buf(&lines, wx, hx);
             // we skip the outer right padding
             idx += por;
             // second bordered line ends
             line += 1;
             assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
+            println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            log_buf(&lines, wx, hx);
         }
     }
 
@@ -629,4 +640,15 @@ impl Text {
         pib: u16,
     ) {
     }
+}
+
+fn log_buf(buf: &[Option<char>], w: u16, h: u16) {
+    print!("lines");
+    for ih in 0..h {
+        println!("");
+        for iw in 0..w {
+            print!("{:?}, ", buf[(iw + ih * w) as usize]);
+        }
+    }
+    println!("");
 }
