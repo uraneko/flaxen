@@ -123,7 +123,7 @@ impl Char {
 }
 
 #[derive(Debug)]
-enum CC {
+pub enum CC {
     // ascii
     BS = 127,
     TAB = 9,

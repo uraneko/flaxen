@@ -1,4 +1,5 @@
-use crate::space_awareness::{Border, Padding, Point, SpaceAwareness};
+use crate::builders::ObjectBuilder;
+use crate::space_awareness::{between, conflicts, Border, Padding, Point, SpaceAwareness};
 use crate::styles::StyleStrategy;
 use crate::termbuf::winsize;
 
@@ -20,6 +21,7 @@ pub enum TreeErrors {
     BadID,
     IDExists,
     ParentNotFound,
+    BoundsNotRespected,
 }
 
 impl ObjectTree {
@@ -49,39 +51,75 @@ impl ObjectTree {
         id
     }
 
-    pub fn container(&mut self, id: &[u8]) -> Result<(), TreeErrors> {
+    pub fn container(
+        &mut self,
+        id: &[u8],
+        x0: u16,
+        y0: u16,
+        w: u16,
+        h: u16,
+        border: Border,
+        padding: Padding,
+    ) -> Result<(), TreeErrors> {
         if id.len() > 2 || !self.has_term(id[0]) || self.has_container(&[id[0], id[1]]) {
             eprintln!("bad id");
             return Err(TreeErrors::BadID);
         }
 
-        self.term_ref_mut(id[0])
-            .unwrap()
-            .containers
-            .push(Container::new([id[0], id[1]]));
+        let term = self.term_ref_mut(id[0]).unwrap();
+
+        let cont = Container::new([id[0], id[1]], x0, y0, w, h, border, padding);
+
+        if term.assign_valid_container_area(&cont).is_err() {
+            return Err(TreeErrors::BoundsNotRespected);
+        }
+
+        term.containers.push(cont);
 
         Ok(())
     }
 
+    // need to have space values already by the time we reach object and object auto series methods
+    // NOTE: should auto not take an object builder
+
     /// takes only term id and automatically assigns an id for the container
     /// returns the full new container id
-    pub fn container_auto(&mut self, id: u8) -> Result<[u8; 2], TreeErrors> {
-        /// this should actually fail
-        if !self.has_term(id) {
-            return Err(TreeErrors::ParentNotFound);
-        }
+    // pub fn container_auto(
+    //     &mut self,
+    //     id: u8,
+    //     x0: u16,
+    //     y0: u16,
+    //     w: u16,
+    //     h: u16,
+    // ) -> Result<[u8; 2], TreeErrors> {
+    //     /// this should actually fail
+    //     if !self.has_term(id) {
+    //         return Err(TreeErrors::ParentNotFound);
+    //     }
+    //
+    //     let id = [id, self.assign_container_id(id)];
+    //
+    //     let term = self.term_ref_mut(id[0]).unwrap();
+    //
+    //     if term.assign_valid_container_area(x0, y0, w, h).is_err() {
+    //         return Err(TreeErrors::BoundsNotRespected);
+    //     }
+    //
+    //     term.containers.push(Container::new(id, x0, y0, w, h));
+    //
+    //     Ok(id)
+    // }
 
-        let id = [id, self.assign_container_id(id)];
-
-        self.term_ref_mut(id[0])
-            .unwrap()
-            .containers
-            .push(Container::new(id));
-
-        Ok(id)
-    }
-
-    pub fn input(&mut self, id: &[u8]) -> Result<(), TreeErrors> {
+    pub fn input(
+        &mut self,
+        id: &[u8],
+        x0: u16,
+        y0: u16,
+        w: u16,
+        h: u16,
+        border: Border,
+        padding: Padding,
+    ) -> Result<(), TreeErrors> {
         if id.len() > 3
             || id[2] % 2 != 0
             || !self.has_container(&[id[0], id[1]])
@@ -91,38 +129,54 @@ impl ObjectTree {
             return Err(TreeErrors::BadID);
         }
 
-        self.container_ref_mut(&[id[0], id[1]])
-            .unwrap()
-            .items
-            .push(Text::new([id[0], id[1], id[2]]));
+        let mut cont = self.container_ref_mut(&[id[0], id[1]]).unwrap();
+
+        let input = Text::new([id[0], id[1], id[2]], x0, y0, w, h, &[], border, padding);
+
+        if cont.assign_valid_text_area(&input).is_err() {
+            return Err(TreeErrors::BoundsNotRespected);
+        }
+
+        cont.items.push(input);
 
         Ok(())
     }
 
     /// takes only term and container ids and automatically assigns an id for the input
     /// returns the full new input id
-    pub fn input_auto(&mut self, id: &[u8]) -> Result<[u8; 3], TreeErrors> {
-        if id.len() > 2 {
-            eprintln!("use self.input(id) instead");
-            return Err(TreeErrors::BadID);
-        }
+    /// DONT USE FOR NOW
+    // pub fn input_auto(&mut self, id: &[u8]) -> Result<[u8; 3], TreeErrors> {
+    //     if id.len() > 2 {
+    //         eprintln!("use self.input(id) instead");
+    //         return Err(TreeErrors::BadID);
+    //     }
+    //
+    //     if !self.has_container(&[id[0], id[1]]) {
+    //         eprintln!("bad id");
+    //         return Err(TreeErrors::ParentNotFound);
+    //     }
+    //
+    //     let id = [id[0], id[1], self.assign_input_id(id[0], id[1])];
+    //
+    //     self.container_ref_mut(&[id[0], id[1]])
+    //         .unwrap()
+    //         .items
+    //         .push(Text::new(id));
+    //
+    //     Ok(id)
+    // }
 
-        if !self.has_container(&[id[0], id[1]]) {
-            eprintln!("bad id");
-            return Err(TreeErrors::ParentNotFound);
-        }
-
-        let id = [id[0], id[1], self.assign_input_id(id[0], id[1])];
-
-        self.container_ref_mut(&[id[0], id[1]])
-            .unwrap()
-            .items
-            .push(Text::new(id));
-
-        Ok(id)
-    }
-
-    pub fn nonedit(&mut self, id: &[u8]) -> Result<(), TreeErrors> {
+    pub fn nonedit(
+        &mut self,
+        id: &[u8],
+        x0: u16,
+        y0: u16,
+        w: u16,
+        h: u16,
+        value: &[char],
+        border: Border,
+        padding: Padding,
+    ) -> Result<(), TreeErrors> {
         if id.len() > 3
             || id[2] % 2 == 0
             || !self.has_container(&[id[0], id[1]])
@@ -132,36 +186,41 @@ impl ObjectTree {
             return Err(TreeErrors::BadID);
         }
 
-        self.container_ref_mut(&[id[0], id[1]])
-            .unwrap()
-            .items
-            .push(Text::new([id[0], id[1], id[2]]));
+        let mut cont = self.container_ref_mut(&[id[0], id[1]]).unwrap();
+
+        let nonedit = Text::new([id[0], id[1], id[2]], x0, y0, w, h, value, border, padding);
+
+        if cont.assign_valid_text_area(&nonedit).is_err() {
+            return Err(TreeErrors::BoundsNotRespected);
+        }
+
+        cont.items.push(nonedit);
 
         Ok(())
     }
 
     /// takes only term and container ids and automatically assigns an id for the nonedit
     /// returns the full new nonedit id
-    pub fn nonedit_auto(&mut self, id: &[u8]) -> Result<[u8; 3], TreeErrors> {
-        if id.len() > 2 {
-            eprintln!("use self.nonedit(id) instead");
-            return Err(TreeErrors::BadID);
-        }
-
-        if !self.has_container(&[id[0], id[1]]) {
-            eprintln!("bad id");
-            return Err(TreeErrors::ParentNotFound);
-        }
-
-        let id = [id[0], id[1], self.assign_nonedit_id(id[0], id[1])];
-
-        self.container_ref_mut(&[id[0], id[1]])
-            .unwrap()
-            .items
-            .push(Text::new(id));
-
-        Ok(id)
-    }
+    // pub fn nonedit_auto(&mut self, id: &[u8]) -> Result<[u8; 3], TreeErrors> {
+    //     if id.len() > 2 {
+    //         eprintln!("use self.nonedit(id) instead");
+    //         return Err(TreeErrors::BadID);
+    //     }
+    //
+    //     if !self.has_container(&[id[0], id[1]]) {
+    //         eprintln!("bad id");
+    //         return Err(TreeErrors::ParentNotFound);
+    //     }
+    //
+    //     let id = [id[0], id[1], self.assign_nonedit_id(id[0], id[1])];
+    //
+    //     self.container_ref_mut(&[id[0], id[1]])
+    //         .unwrap()
+    //         .items
+    //         .push(Text::new(id));
+    //
+    //     Ok(id)
+    // }
 
     /// returns an optional immutable reference of the term with the provided id if it exists
     pub fn term_ref(&self, id: u8) -> Option<&Term> {
@@ -350,100 +409,81 @@ impl ObjectTree {
     }
 }
 
+enum SpaceError {
+    E1,
+}
+
 #[derive(Debug)]
 pub struct Term {
     pub overlay: bool,
     pub id: u8,
     pub cache: HashMap<&'static str, Vec<u8>>,
-    pub buf: Vec<char>,
-    pub width: u16,
-    pub height: u16,
-    pub cursor: Point<u16>,
+    pub buf: Vec<Option<char>>,
+    pub w: u16,
+    pub h: u16,
+    pub cx: u16,
+    pub cy: u16,
     pub containers: Vec<Container>,
     pub registry: HashSet<&'static str>,
     pub border: Border,
     pub padding: Padding,
 }
 
-impl Term {
-    pub fn new(id: u8) -> Term {
+impl Default for Term {
+    fn default() -> Term {
         let ws = winsize::from_ioctl();
 
         let mut buf = vec![];
-        buf.resize((ws.rows() * ws.cols()) as usize, ' ');
+        buf.resize((ws.rows() * ws.cols()) as usize, None);
+
+        Term {
+            buf,
+            w: ws.cols(),
+            h: ws.rows(),
+            registry: HashSet::from(["Core"]),
+            padding: Padding::None,
+            border: Border::None,
+            overlay: false,
+            id: 0,
+            cache: HashMap::new(),
+            cx: 0,
+            cy: 0,
+            containers: vec![],
+        }
+    }
+}
+
+impl Term {
+    pub fn new(id: u8) -> Self {
+        let ws = winsize::from_ioctl();
+
+        let mut buf = vec![];
+        buf.resize((ws.rows() * ws.cols()) as usize, None);
 
         Term {
             id,
-            overlay: false,
-            cache: HashMap::new(),
-            cursor: Point::new(0, 0),
-            width: ws.cols(),
-            height: ws.rows(),
             buf,
-            containers: vec![],
-            registry: HashSet::from(["Zero"]),
+            w: ws.cols(),
+            h: ws.rows(),
+            registry: HashSet::from(["Core"]),
             padding: Padding::None,
-            border: Border::Some('?'),
+            border: Border::Uniform('*'),
+            ..Default::default()
         }
+    }
+
+    pub fn from_builder(ob: &ObjectBuilder) -> Self {
+        ob.term()
     }
 
     // prints the buffer, respecting width and height
     pub fn print_buf(&self) {
-        for idxr in 0..self.buf.len() / self.width as usize {
+        for idxr in 0..self.buf.len() / self.w as usize {
             print!("\r\n");
-            for idxc in 0..self.buf.len() / self.height as usize {
-                print!("{}", self.buf[idxr]);
+            for idxc in 0..self.buf.len() / self.h as usize {
+                print!("{:?}", self.buf[idxr]);
             }
         }
-    }
-
-    /// places the cursor at the new position
-    pub fn place(&mut self, x: u16, y: u16) {
-        let esc_seq = format!("\x1b{};{}f", x, y);
-        self.cursor.place(x, y);
-    }
-
-    // TODO: partial clear/render
-
-    /// rewrites the buffer according to new spaces, positions and events
-    pub fn process(&mut self) {
-        self.containers.iter().for_each(|c| {
-            let buf = c.buffer();
-            let [mut x, mut y] = [0, 0];
-            let [xmin, ymin] = [c.origin.x(), c.origin.y()];
-            let [xmax, ymax] = [c.origin.x() + c.width, c.origin.y() + c.height];
-            while y < ymax {
-                while x < xmax {
-                    let tpt = xmin + ymin + x + y * c.width;
-                    let bpt = x + y * c.width;
-                    self.buf[tpt as usize] = buf[bpt as usize];
-                    x += 1;
-                }
-                x = 0;
-                y += 1;
-            }
-        })
-    }
-
-    /// renders the whole buffer into the terminal
-    /// use after clear
-    pub fn render(&self, writer: &mut StdoutLock) {
-        assert_eq!(self.buf.len() as u16, self.width * self.height);
-        let mut line_break = self.width;
-        self.buf.iter().for_each(|cell| {
-            // chnage buffer items to be chars
-            writer.write(format!("{}", cell).as_bytes());
-            line_break -= 1;
-            if line_break == 0 {
-                writer.write(&[13, 10]);
-                line_break = self.width;
-            }
-        });
-    }
-
-    /// clears the whole terminal display
-    pub fn clear(&self, writer: &mut StdoutLock) {
-        writer.write(b"\x1b[2J");
     }
 
     /// adds a Permit type to the term's registry
@@ -460,18 +500,63 @@ impl Term {
     pub fn has_permit<P>(&self) -> bool {
         self.registry.contains(type_name::<P>())
     }
+
+    // NOTE: for now gonna ignore overlay totally
+
+    // called on container auto and basic initializers
+    pub fn assign_valid_container_area(
+        &self, // term
+        cont: &Container,
+        // layer: u8,
+    ) -> Result<(), SpaceError> {
+        let [x0, y0] = [cont.x0, cont.y0];
+        let [w, h] = cont.decorate();
+
+        // check if new area + padding + border is bigger than term area
+        if self.w * self.h < w * h
+            || x0 > self.w
+            || y0 > self.h
+            || w > self.w
+            || h > self.h
+            || x0 + w > self.w
+            || y0 + h > self.h
+        {
+            return Err(SpaceError::E1);
+        }
+
+        let mut e = 0;
+
+        self.containers.iter().for_each(|c| {
+            if e == 0 {
+                let [right, left, top, bottom] = conflicts(x0, y0, w, h, c.x0, c.y0, c.w, c.h);
+                // conflict case
+                if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
+                    // TODO: actually handle overlay logic
+                    e = 1;
+                }
+            }
+        });
+
+        if e == 1 {
+            return Err(SpaceError::E1);
+        }
+
+        Ok(())
+    }
 }
 
 // TODO: need a way
 
 #[derive(Debug)]
 pub struct Container {
-    pub overlayed: bool,
+    pub overlay: bool,
+    pub layer: u8,
     pub id: [u8; 2],
     pub items: Vec<Text>,
-    pub width: u16,
-    pub height: u16,
-    pub origin: Point<u16>,
+    pub w: u16,
+    pub h: u16,
+    pub x0: u16,
+    pub y0: u16,
     pub registry: HashSet<&'static str>,
     pub border: Border,
     pub padding: Padding,
@@ -490,19 +575,60 @@ impl std::fmt::Display for Container {
 // he is the only one with access to the Term father
 // TODO: commissioner needs to handle the space, id requests allocations
 
+impl Default for Container {
+    fn default() -> Self {
+        Self {
+            id: [0, 0],
+            layer: 0,
+            w: 37,
+            h: 5,
+            overlay: false,
+            items: vec![],
+            x0: 5,
+            y0: 2,
+            padding: Padding::None,
+            border: Border::None,
+            registry: HashSet::new(),
+        }
+    }
+}
+
 impl Container {
-    pub fn new(id: [u8; 2]) -> Container {
+    pub fn new(
+        id: [u8; 2],
+        x0: u16,
+        y0: u16,
+        w: u16,
+        h: u16,
+        border: Border,
+        padding: Padding,
+    ) -> Container {
         Container {
             id,
-            overlayed: false,
-            registry: HashSet::new(),
-            width: 37,
-            height: 5,
-            origin: Point::<u16>::new(17, 0),
-            items: vec![],
-            padding: Padding::None,
-            border: Border::Some('?'),
+            w,
+            h,
+            x0,
+            y0,
+            border,
+            padding,
+            ..Default::default()
         }
+    }
+
+    pub fn with_layer(id: [u8; 2], layer: u8) -> Self {
+        Container {
+            layer,
+            id,
+            w: 37,
+            h: 5,
+            x0: 5,
+            y0: 2,
+            ..Default::default()
+        }
+    }
+
+    pub fn from_builder(ob: &ObjectBuilder) -> Self {
+        ob.container()
     }
 
     pub fn permit<P>(&mut self) {
@@ -520,86 +646,132 @@ impl Container {
     /// takes all items in container and makes a buffer of char values that correspond to how that
     /// container should look like in term display
     pub fn buffer(&self) -> Vec<char> {
-        let line_break = self.width;
-        let mut buf = Vec::with_capacity((self.width * self.height) as usize);
-        self.items.iter().for_each(|i| {
-            // write the outer padding
-            // write the borders
-            // write the inner padding
-            // write the value
-            let mut x = 0;
-            let mut y = 0;
-            let (xmin, xmax) = (i.origin.x(), i.origin.x() + i.width);
-            let (ymin, ymax) = (i.origin.y(), i.origin.y() + i.height);
-            let line_break = xmax;
-            while y < ymin {
-                y += 1;
-                buf.extend(
-                    (0..self.width)
-                        .into_iter()
-                        .map(|u| ' ')
-                        .collect::<Vec<char>>(),
-                )
-            }
+        vec![]
+    }
 
-            while x < xmin {
-                x += 1;
-                buf.push(' ')
-            }
+    // called on auto and base input/nonedit initializers
+    pub fn assign_valid_text_area(
+        &self, // container
+        text: &Text,
+    ) -> Result<(), SpaceError> {
+        let [x0, y0] = [text.x0, text.y0];
+        let [w, h] = text.decorate();
 
-            buf.extend(i.value.clone());
-            while x < xmax {
-                x += 1;
-                buf.push(' ');
-            }
+        // check if new area is bigger than parent container area
+        if self.w * self.h < w * h
+            || x0 > self.w
+            || y0 > self.h
+            || w > self.w
+            || h > self.h
+            || x0 + w > self.w
+            || y0 + h > self.h
+        {
+            return Err(SpaceError::E1);
+        }
 
-            while y < ymax {
-                y += 1;
-                buf.extend(
-                    (0..self.width)
-                        .into_iter()
-                        .map(|u| ' ')
-                        .collect::<Vec<char>>(),
-                )
+        let mut e = 0;
+
+        self.items.iter().for_each(|t| {
+            if e == 0 {
+                let [right, left, top, bottom] = conflicts(x0, y0, w, h, t.x0, t.y0, t.w, t.h);
+                // conflict case
+                if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
+                    // TODO: actually handle overlay logic
+                    e = 1;
+                }
             }
         });
 
-        buf
+        if e == 1 {
+            return Err(SpaceError::E1);
+        }
+
+        Ok(())
     }
 }
 
+// TODO: make the current Objects new implementations into Default impls
+// then impl new with arguments
+
 #[derive(Debug)]
 pub struct Text {
-    pub overlayed: bool,
-    edit: bool,
+    pub layer: u8,
+    // editable content or not
+    pub edit: bool,
     pub id: [u8; 3],
     pub value: Vec<char>,
-    pub width: u16,
-    pub height: u16,
-    pub cursor: Point<u16>,
-    pub origin: Point<u16>,
+    pub w: u16,
+    pub h: u16,
+    pub cx: u16,
+    pub cy: u16,
+    pub x0: u16,
+    pub y0: u16,
     pub registry: HashSet<&'static str>,
     pub border: Border,
     pub padding: Padding,
 }
 
+impl Default for Text {
+    fn default() -> Self {
+        Text {
+            id: [0, 0, 0],
+            w: 20,
+            h: 3,
+            x0: 5,
+            y0: 3,
+            value: vec!['h', 'e', 'l', 'l', 'o', ' ', 't', 'e', 'r', 'm'],
+            cx: 0,
+            cy: 0,
+            registry: HashSet::new(),
+            border: Border::None,
+            padding: Padding::None,
+            edit: false,
+            layer: 0,
+        }
+    }
+}
+
 // Inputs can only have pair IDs
 // while NonEdits can only have odd IDs
 impl Text {
-    pub fn new(id: [u8; 3]) -> Text {
+    pub fn new(
+        id: [u8; 3],
+        x0: u16,
+        y0: u16,
+        w: u16,
+        h: u16,
+        value: &[char],
+
+        border: Border,
+        padding: Padding,
+    ) -> Text {
         Text {
             id,
-            edit: true,
-            width: 37,
-            height: 5,
-            origin: Point::<u16>::new(6, 0),
-            cursor: Point::<u16>::new(0, 0),
-            overlayed: false,
-            value: vec!['h', 'e', 'l', 'l', 'o', ' ', 't', 'e', 'r', 'm'],
-            registry: HashSet::new(),
-            padding: Padding::None,
-            border: Border::Some('?'),
+            w,
+            h,
+            x0,
+            y0,
+            border,
+            padding,
+            value: value.to_vec(),
+            ..Default::default()
         }
+    }
+
+    pub fn with_layer(id: [u8; 3], layer: u8) -> Self {
+        Text {
+            layer,
+            id,
+            w: 37,
+            h: 5,
+            x0: 5,
+            y0: 2,
+            ..Default::default()
+        }
+    }
+
+    pub fn from_builder(ob: &ObjectBuilder) -> Self {
+        ob.text()
     }
 
     pub fn permit<P>(&mut self) {

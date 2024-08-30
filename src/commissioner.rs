@@ -1,6 +1,7 @@
 use crate::events::{Events, EventsConclusion, EventsTrigger};
 use crate::kbd_decode::{decode_ki, read_ki, KbdEvent};
 use crate::object_tree::{ObjectTree, Term, Zero};
+use crate::space_awareness::{Border, Padding};
 use std::collections::HashMap;
 use std::io::{StdinLock, StdoutLock};
 //
@@ -128,8 +129,8 @@ async fn ragout<P, A, T, IE, R>(
     writer: &mut StdoutLock<'static>,
 ) where
     IE: Events<P, A, T>,
-    T: EventsTrigger,
-    R: EventsConclusion,
+    T: EventsTrigger<A>,
+    R: EventsConclusion<A>,
 {
     let fps = 60;
     let refresh = 1000 / fps;
@@ -146,18 +147,18 @@ async fn ragout<P, A, T, IE, R>(
 
 pub enum InitEvent {
     Term(u8),
-    Container(&'static [u8]),
-    Input(&'static [u8]),
-    NonEdit(&'static [u8]),
+    Container(&'static [u8], u16, u16, u16, u16),
+    Input(&'static [u8], u16, u16, u16, u16),
+    NonEdit(&'static [u8], u16, u16, u16, u16, &'static [char]),
 }
 
-impl EventsTrigger for InitEvent {}
+impl EventsTrigger<CreateObject> for InitEvent {}
 
 pub struct CreateObject;
 
 struct Containerd;
 
-impl EventsConclusion for () {}
+impl EventsConclusion<CreateObject> for () {}
 
 pub struct Anchor;
 
@@ -165,9 +166,49 @@ impl Events<Anchor, CreateObject, InitEvent> for ObjectTree {
     fn fire(&mut self, input: InitEvent) {
         if match input {
             InitEvent::Term(term) => self.term(term),
-            InitEvent::Container(id) => self.container(id),
-            InitEvent::Input(id) => self.input(id),
-            InitEvent::NonEdit(id) => self.nonedit(id),
+            InitEvent::Container(id, x0, y0, w, h) => self.container(
+                id,
+                x0,
+                y0,
+                w,
+                h,
+                Border::Uniform('*'),
+                Padding::Outer {
+                    top: 1,
+                    bottom: 1,
+                    right: 1,
+                    left: 1,
+                },
+            ),
+            InitEvent::Input(id, x0, y0, w, h) => self.input(
+                id,
+                x0,
+                y0,
+                w,
+                h,
+                Border::Uniform('*'),
+                Padding::Outer {
+                    top: 1,
+                    bottom: 1,
+                    right: 1,
+                    left: 1,
+                },
+            ),
+            InitEvent::NonEdit(id, x0, y0, w, h, v) => self.nonedit(
+                id,
+                x0,
+                y0,
+                w,
+                h,
+                v,
+                Border::Uniform('*'),
+                Padding::Outer {
+                    top: 1,
+                    bottom: 1,
+                    right: 1,
+                    left: 1,
+                },
+            ),
         }
         .is_err()
         {

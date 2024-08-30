@@ -1,4 +1,6 @@
 #![allow(warnings)]
+pub mod builders;
+pub mod builtin_events;
 pub mod commissioner;
 pub mod container;
 pub mod events;
@@ -7,6 +9,7 @@ pub mod input;
 pub mod kbd_decode;
 pub mod presets;
 pub mod raw_mode;
+pub mod render_pipeline;
 pub mod space_awareness;
 pub mod styles;
 pub mod termbuf;
@@ -40,3 +43,5 @@ use commissioner::Commissioner;
 // 3 do the builtin events;
 //     input inner logic + output changes events + windowresize event + panes logic
 // 4 do themes
+//
+// refactor space/rendering into a more robust approach

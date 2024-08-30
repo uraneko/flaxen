@@ -28,6 +28,10 @@ name = "events2"
 path = "examples/events2.rs"
 
 [[example]]
+name = "impl"
+path = "examples/impl.rs"
+
+[[example]]
 name = "bufimg"
 path = "examples/buffer_image.rs"
 

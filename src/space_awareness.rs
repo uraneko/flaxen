@@ -168,14 +168,49 @@ impl<
     }
 }
 
-#[derive(Debug)]
-pub enum Border {
-    None,
-    Some(char),
+// top, right, bottom, left
+// a is the new object
+// b is the pre existing one
+pub fn conflicts(
+    ax0: u16,
+    ay0: u16,
+    aw: u16,
+    ah: u16,
+    bx0: u16,
+    by0: u16,
+    bw: u16,
+    bh: u16,
+) -> [i16; 4] {
+    [
+        (by0 - ay0 + ah) as i16, // bottom,  if > 0 then no conflict
+        (by0 + bh - ay0) as i16, // top,    if < 0 then no conflict
+        (bx0 - ax0 + aw) as i16, // right, if > 0 then no conflict
+        (bx0 + bw - ax0) as i16, // left, if < 0 then no conflic
+    ]
 }
 
-#[derive(Debug)]
+pub fn between<T: std::cmp::PartialOrd>(a: T, b: T, c: T) -> bool {
+    a < b && b < c
+}
+
+#[derive(Debug, Default, Clone, Copy)]
+pub enum Border {
+    #[default]
+    None,
+    Uniform(char),
+    Polyform {
+        rcorner: char,
+        lcorner: char,
+        tcorner: char,
+        bcorner: char,
+        rl: char,
+        tb: char,
+    },
+}
+
+#[derive(Debug, Default, Clone, Copy)]
 pub enum Padding {
+    #[default]
     None,
 
     Inner {
@@ -206,26 +241,28 @@ pub enum Padding {
 
 impl SpaceAwareness for Term {
     fn rescale(&mut self, wdiff: u16, hdiff: u16) {
-        self.width *= wdiff;
-        self.height *= hdiff;
-        self.cursor.rescale(wdiff, hdiff);
-        // TODO: self buf changes
+        self.w *= wdiff;
+        self.h *= hdiff;
+        self.cx *= wdiff;
+        self.cy *= hdiff;
     }
 }
 
 impl SpaceAwareness for Container {
     fn rescale(&mut self, wdiff: u16, hdiff: u16) {
-        self.width *= wdiff;
-        self.height *= hdiff;
-        self.origin.rescale(wdiff, hdiff);
+        self.w *= wdiff;
+        self.h *= hdiff;
+        self.x0 *= wdiff;
+        self.y0 *= hdiff;
     }
 }
 
 impl SpaceAwareness for Text {
     fn rescale(&mut self, wdiff: u16, hdiff: u16) {
-        self.width *= wdiff;
-        self.height *= hdiff;
-        self.origin.rescale(wdiff, hdiff);
+        self.w *= wdiff;
+        self.h *= hdiff;
+        self.x0 *= wdiff;
+        self.y0 *= hdiff;
     }
 }
 
