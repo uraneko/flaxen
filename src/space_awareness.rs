@@ -182,10 +182,10 @@ pub fn conflicts(
     bh: u16,
 ) -> [i16; 4] {
     [
-        (by0 - ay0 + ah) as i16, // bottom,  if > 0 then no conflict
-        (by0 + bh - ay0) as i16, // top,    if < 0 then no conflict
-        (bx0 - ax0 + aw) as i16, // right, if > 0 then no conflict
-        (bx0 + bw - ax0) as i16, // left, if < 0 then no conflic
+        by0 as i16 - ay0 as i16 + ah as i16, // bottom,  if > 0 then no conflict
+        by0 as i16 + bh as i16 - ay0 as i16, // top,    if < 0 then no conflict
+        bx0 as i16 - ax0 as i16 + aw as i16, // right, if > 0 then no conflict
+        bx0 as i16 + bw as i16 - ax0 as i16, // left, if < 0 then no conflic
     ]
 }
 

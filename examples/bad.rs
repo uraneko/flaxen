@@ -7,16 +7,30 @@ use ragout::*;
 fn main() {
     let mut ot = ObjectTree::new();
 
-    ot.fire(InitEvent::Container(&[0, 9], 3, 3, 21, 6));
+    ot.fire(InitEvent::Container(&[0, 9], 3, 3, 54, 14));
     ot.fire(InitEvent::NonEdit(
         &[0, 9, 5],
-        12, // x0
-        1,  // y0
-        5,  // w
-        1,  // h
+        6, // x0
+        1, // y0
+        5, // w
+        1, // h
         // border *
         // padding outer: 1 1 1 1
         &['h', 'e', 'l', 'l', 'o'],
+    ));
+
+    ot.fire(InitEvent::NonEdit(
+        &[0, 9, 1],
+        32, // x0
+        6,  // y0
+        // BUG: setting width to 6 would break the example
+        // because the value writing for loop will try to access value[6] which crashes since
+        // value.len = 5 and so looping on 0..width stops after idx 4 of value
+        5, // w
+        2, // h
+        // border *
+        // padding outer: 1 1 1 1
+        &['w', 'o', 'r', 'l', 'd'],
     ));
     // TODO: if a value is given for text at initialization, it needs to be checked for bounds
     // validity,
@@ -36,6 +50,6 @@ fn main() {
 
     let term = ot.term_ref_mut(0).unwrap();
 
-    // term.clear(&mut writer);
+    term.clear(&mut writer);
     term.render(&mut writer);
 }

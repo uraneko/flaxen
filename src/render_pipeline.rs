@@ -51,26 +51,31 @@ impl Term {
             }
         });
 
+        // NOTE: this part is really hard to debug since term is the size of the entire terminal
+        // window and has no border or padding
+        // but all the parts before this are working (sans the already found bugs)
+        // and this part too seems to be working
         lines
     }
 
     /// renders the whole buffer into the terminal
     /// assumes that Term::clear() has been used before hand to prepare the terminal display for the
     /// rendering
+    // this method doesn't work at all
     pub fn render(&self, writer: &mut StdoutLock) {
         let cells = self.prepare();
-        let mut cells = cells.iter();
 
         let mut s = String::new();
 
         let mut line = 0;
         let mut idx = 0;
 
-        while let Some(cell) = cells.next() {
-            match cell {
+        // BUG: we need all Some and None
+        for bidx in 0..cells.len() {
+            match cells[bidx] {
                 Some(c) => {
                     s.clear();
-                    s.push(*c);
+                    s.push(c);
                     _ = writer.write(&s.as_bytes());
                 }
                 None => {
@@ -78,7 +83,7 @@ impl Term {
                 }
             };
 
-            // increment index after every cell write
+            // increment index after every cell write or movement
             idx += 1;
             // if we have reached end of line
             if idx == self.w {
@@ -87,9 +92,8 @@ impl Term {
                 // we reset idx
                 idx = 0;
 
-                format!("\x1b[1;{}f", line);
                 // we move the cursor to the next line's first cell
-                writer.write(&s.as_bytes());
+                writer.write(&[13, 10]);
             }
         }
 
@@ -156,6 +160,12 @@ impl Container {
         // make out each line of the item, padding and border included
         // then render line
         // until all lines are rendered
+        let [por, pol, pot, pob, pir, pil, pit, pib] = spread_padding(&self.padding);
+        let brdr = match self.border {
+            Border::None => 0,
+            _ => 1,
+        };
+
         let mut lines: Vec<Option<char>> = vec![];
 
         // wx is the number of chars in a line
@@ -165,8 +175,10 @@ impl Container {
 
         self.process(&mut lines);
 
+        // BUG: t.x0 and t.y0 need to have c.border and c.paddings
+        // added to them
         self.items.iter().for_each(|t| {
-            let mut idx = t.x0 + t.y0 * wx;
+            let mut idx = pol + brdr + pil + t.x0 + (pot + brdr + pit + t.y0) * wx;
             let mut line = 0;
             let (cells, [twx, thx]) = t.prepare();
 
@@ -192,44 +204,12 @@ impl Container {
             }
         });
 
+        // log_buf(&lines, wx, hx);
         (lines, [wx, hx])
     }
 
     fn process(&self, lines: &mut Vec<Option<char>>) {
-        let [por, pol, pot, pob, pir, pil, pit, pib] = match self.padding {
-            Padding::None => [0; 8],
-            Padding::Inner {
-                top,
-                bottom,
-                right,
-                left,
-            } => [0, 0, 0, 0, right, left, top, bottom],
-            Padding::Outer {
-                top,
-                bottom,
-                right,
-                left,
-            } => [right, left, top, bottom, 0, 0, 0, 0],
-            Padding::InOut {
-                inner_top,
-                inner_bottom,
-                inner_right,
-                inner_left,
-                outer_top,
-                outer_bottom,
-                outer_right,
-                outer_left,
-            } => [
-                outer_right,
-                outer_left,
-                outer_top,
-                outer_bottom,
-                inner_right,
-                inner_left,
-                inner_top,
-                inner_bottom,
-            ],
-        };
+        let [por, pol, pot, pob, pir, pil, pit, pib] = spread_padding(&self.padding);
 
         let [wx, hx] = self.decorate();
 
@@ -293,8 +273,8 @@ impl Container {
             // we skip the outer left padding values
             idx += pol;
             // we fill value length + inner padding right + left with border value
-            for i in 0..self.w + pir + pil {
-                lines[i as usize] = Some(c);
+            for i in 0..pil + 1 + self.w + pir + 1 {
+                lines[idx as usize] = Some(c);
                 idx += 1;
             }
             // we skipp the outer right padding
@@ -304,7 +284,8 @@ impl Container {
 
             // handle the pre value lines
             // every iteration is a line
-            loop {
+
+            while line < pot + 1 + pit + self.h + pib {
                 // new line we skip padding outer left
                 idx += pol;
                 // border cell
@@ -314,22 +295,20 @@ impl Container {
                 idx += pil + self.w + pir;
                 // border cell
                 lines[idx as usize] = Some(c);
+                idx += 1;
                 // skipp outer right padding
                 idx += por;
 
                 line += 1;
                 // we are in front of the second full border line
-                if line == pot + 1 + pit + self.h + pib {
-                    break;
-                }
             }
 
             // second and last line of full border
             // we skip the outer left padding values
             idx += pol;
             // we fill value length + inner padding right + left with border value
-            for i in 0..self.w + pir + pil {
-                lines[i as usize] = Some(c);
+            for i in 0..pil + 1 + self.w + pir + 1 {
+                lines[idx as usize] = Some(c);
                 idx += 1;
             }
             // we skip the outer right padding
@@ -415,40 +394,7 @@ impl Text {
     }
 
     fn process(&self, lines: &mut Vec<Option<char>>) {
-        let [por, pol, pot, pob, pir, pil, pit, pib] = match self.padding {
-            Padding::None => [0; 8],
-            Padding::Inner {
-                top,
-                bottom,
-                right,
-                left,
-            } => [0, 0, 0, 0, right, left, top, bottom],
-            Padding::Outer {
-                top,
-                bottom,
-                right,
-                left,
-            } => [right, left, top, bottom, 0, 0, 0, 0],
-            Padding::InOut {
-                inner_top,
-                inner_bottom,
-                inner_right,
-                inner_left,
-                outer_top,
-                outer_bottom,
-                outer_right,
-                outer_left,
-            } => [
-                outer_right,
-                outer_left,
-                outer_top,
-                outer_bottom,
-                inner_right,
-                inner_left,
-                inner_top,
-                inner_bottom,
-            ],
-        };
+        let [por, pol, pot, pob, pir, pil, pit, pib] = spread_padding(&self.padding);
 
         let [wx, hx] = self.decorate();
 
@@ -509,18 +455,18 @@ impl Text {
             let v0 = pot + 1 + pit;
             // the line the value ends on
             let v1 = v0 + self.h;
-            println!("{}: v0 = {}, v1 = {}", line!(), v0, v1,);
-            println!("{}: wextra = {}, hxtra = {}", line!(), wx, hx);
+            // println!("{}: v0 = {}, v1 = {}", line!(), v0, v1,);
+            // println!("{}: wextra = {}, hxtra = {}", line!(), wx, hx);
 
             // first line of border
             // lines of padding times number of cells in one line
             let mut idx = pot * wx;
             let mut line = pot;
-            println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
             // we skip the outer left padding values
             idx += pol;
 
-            log_buf(&lines, wx, hx);
+            // log_buf(&lines, wx, hx);
 
             // we fill value length + inner padding right + left with border value
             for i in 0..pil + 1 + self.w + pir + 1 {
@@ -528,12 +474,12 @@ impl Text {
                 idx += 1;
             }
             // println!("lines ==> {:?}", lines);
-            log_buf(&lines, wx, hx);
+            // log_buf(&lines, wx, hx);
             // we skipp the outer right padding
             idx += por;
             // first bordered line ends
             line += 1;
-            println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
 
             // handle the pre value lines
             // every iteration is a line
@@ -553,8 +499,8 @@ impl Text {
                 idx += por;
 
                 line += 1;
-                println!("{}: idx = {}, line = {}", line!(), idx, line,);
-                log_buf(&lines, wx, hx);
+                // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+                // log_buf(&lines, wx, hx);
             }
             // handle the value lines
             // every iteration is a line
@@ -568,6 +514,7 @@ impl Text {
                 // skip inner left padding
                 idx += pil;
                 // write values
+                // BUG: doesn't handle multi lined values
                 for vi in 0..self.w as usize {
                     lines[idx as usize] = Some(self.value[vi]);
                     idx += 1;
@@ -581,8 +528,8 @@ impl Text {
                 idx += por;
 
                 line += 1;
-                println!("{}: idx = {}, line = {}", line!(), idx, line,);
-                log_buf(&lines, wx, hx);
+                // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+                // log_buf(&lines, wx, hx);
             }
             // we left value lines
 
@@ -612,15 +559,15 @@ impl Text {
                 lines[idx as usize] = Some(c);
                 idx += 1;
             }
-            println!("{}: idx = {}, line = {}", line!(), idx, line,);
-            log_buf(&lines, wx, hx);
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // log_buf(&lines, wx, hx);
             // we skip the outer right padding
             idx += por;
             // second bordered line ends
             line += 1;
             assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
-            println!("{}: idx = {}, line = {}", line!(), idx, line,);
-            log_buf(&lines, wx, hx);
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // log_buf(&lines, wx, hx);
         }
     }
 
@@ -642,12 +589,49 @@ impl Text {
     }
 }
 
+fn spread_padding(p: &Padding) -> [u16; 8] {
+    match p {
+        Padding::None => [0; 8],
+        Padding::Inner {
+            top,
+            bottom,
+            right,
+            left,
+        } => [0, 0, 0, 0, *right, *left, *top, *bottom],
+        Padding::Outer {
+            top,
+            bottom,
+            right,
+            left,
+        } => [*right, *left, *top, *bottom, 0, 0, 0, 0],
+        Padding::InOut {
+            inner_top,
+            inner_bottom,
+            inner_right,
+            inner_left,
+            outer_top,
+            outer_bottom,
+            outer_right,
+            outer_left,
+        } => [
+            *outer_right,
+            *outer_left,
+            *outer_top,
+            *outer_bottom,
+            *inner_right,
+            *inner_left,
+            *inner_top,
+            *inner_bottom,
+        ],
+    }
+}
+
 fn log_buf(buf: &[Option<char>], w: u16, h: u16) {
     print!("lines");
     for ih in 0..h {
         println!("");
         for iw in 0..w {
-            print!("{:?}, ", buf[(iw + ih * w) as usize]);
+            print!("{}", (buf[(iw + ih * w) as usize]).unwrap_or(' '));
         }
     }
     println!("");

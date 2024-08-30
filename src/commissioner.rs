@@ -173,11 +173,15 @@ impl Events<Anchor, CreateObject, InitEvent> for ObjectTree {
                 w,
                 h,
                 Border::Uniform('*'),
-                Padding::Outer {
-                    top: 1,
-                    bottom: 1,
-                    right: 1,
-                    left: 1,
+                Padding::InOut {
+                    outer_top: 1,
+                    outer_bottom: 1,
+                    outer_right: 1,
+                    outer_left: 1,
+                    inner_top: 1,
+                    inner_bottom: 1,
+                    inner_right: 1,
+                    inner_left: 1,
                 },
             ),
             InitEvent::Input(id, x0, y0, w, h) => self.input(
@@ -187,11 +191,15 @@ impl Events<Anchor, CreateObject, InitEvent> for ObjectTree {
                 w,
                 h,
                 Border::Uniform('*'),
-                Padding::Outer {
-                    top: 1,
-                    bottom: 1,
-                    right: 1,
-                    left: 1,
+                Padding::InOut {
+                    outer_top: 1,
+                    outer_bottom: 1,
+                    outer_right: 1,
+                    outer_left: 1,
+                    inner_top: 1,
+                    inner_bottom: 1,
+                    inner_right: 1,
+                    inner_left: 1,
                 },
             ),
             InitEvent::NonEdit(id, x0, y0, w, h, v) => self.nonedit(
@@ -202,11 +210,15 @@ impl Events<Anchor, CreateObject, InitEvent> for ObjectTree {
                 h,
                 v,
                 Border::Uniform('*'),
-                Padding::Outer {
-                    top: 1,
-                    bottom: 1,
-                    right: 1,
-                    left: 1,
+                Padding::InOut {
+                    outer_top: 1,
+                    outer_bottom: 1,
+                    outer_right: 1,
+                    outer_left: 1,
+                    inner_top: 1,
+                    inner_bottom: 1,
+                    inner_right: 1,
+                    inner_left: 1,
                 },
             ),
         }
