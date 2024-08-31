@@ -70,7 +70,6 @@ impl Term {
         let mut line = 0;
         let mut idx = 0;
 
-        // BUG: we need all Some and None
         for bidx in 0..cells.len() {
             match cells[bidx] {
                 Some(c) => {
@@ -175,8 +174,6 @@ impl Container {
 
         self.process(&mut lines);
 
-        // BUG: t.x0 and t.y0 need to have c.border and c.paddings
-        // added to them
         self.items.iter().for_each(|t| {
             let mut idx = pol + brdr + pil + t.x0 + (pot + brdr + pit + t.y0) * wx;
             let mut line = 0;
@@ -502,10 +499,12 @@ impl Text {
                 // println!("{}: idx = {}, line = {}", line!(), idx, line,);
                 // log_buf(&lines, wx, hx);
             }
+
             // handle the value lines
             // every iteration is a line
             // we are not out of the value lines yet
             while line < v1 {
+                println!("==>> line = {}", line);
                 // new line we skip padding outer left
                 idx += pol;
                 // border cell
@@ -516,10 +515,24 @@ impl Text {
                 // write values
                 // BUG: doesn't handle multi lined values
                 for vi in 0..self.w as usize {
-                    lines[idx as usize] = Some(self.value[vi]);
+                    println!(
+                        "{}: vi{} + (w{} * (line{} - pot{} - 1 - pit{})) = {}",
+                        line!(),
+                        vi,
+                        self.w,
+                        line,
+                        pot,
+                        pit,
+                        vi + (self.w * (line - pot - 1 - pit)) as usize
+                    );
+                    let i = vi + (self.w * (line - pot - 1 - pit)) as usize;
+                    if i < self.value.len() {
+                        lines[idx as usize] = Some(self.value[i]);
+                    }
                     idx += 1;
+                    log_buf(&lines, wx, hx);
                 }
-                // skipp inner right padding
+                // skip inner right padding
                 idx += pir;
                 // border cell
                 lines[idx as usize] = Some(c);

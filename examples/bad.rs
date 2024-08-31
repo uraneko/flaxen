@@ -24,13 +24,13 @@ fn main() {
         32, // x0
         6,  // y0
         // BUG: setting width to 6 would break the example
-        // because the value writing for loop will try to access value[6] which crashes since
-        // value.len = 5 and so looping on 0..width stops after idx 4 of value
+        // because the value writing for loop will try to access value[5] which crashes since
+        // value.len = 5 and so looping on 0..width stops after idx 4 of value with width = 5
         5, // w
         2, // h
         // border *
         // padding outer: 1 1 1 1
-        &['w', 'o', 'r', 'l', 'd'],
+        &['w', 'o', 'r', 'l', 'd', '!'],
     ));
     // TODO: if a value is given for text at initialization, it needs to be checked for bounds
     // validity,

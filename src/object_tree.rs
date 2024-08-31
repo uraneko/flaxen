@@ -19,6 +19,7 @@ pub struct ObjectTree {
 #[derive(Debug)]
 pub enum TreeErrors {
     BadID,
+    BadValue,
     IDExists,
     ParentNotFound,
     BoundsNotRespected,
@@ -184,6 +185,15 @@ impl ObjectTree {
         {
             eprintln!("bad id");
             return Err(TreeErrors::BadID);
+        }
+
+        if value.len() as u16 > w * h {
+            eprintln!(
+                "value of len {} too long for bounds w * h {}",
+                value.len(),
+                w * h
+            );
+            return Err(TreeErrors::BadValue);
         }
 
         let mut cont = self.container_ref_mut(&[id[0], id[1]]).unwrap();
@@ -753,7 +763,12 @@ impl Text {
             y0,
             border,
             padding,
-            value: value.to_vec(),
+            value: {
+                let mut v = Vec::with_capacity((w * h) as usize);
+                v.extend_from_slice(value);
+
+                v
+            },
             ..Default::default()
         }
     }
