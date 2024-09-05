@@ -124,20 +124,25 @@ impl Term {
 
 impl Container {
     // renders container border and children
-    pub fn render(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
-        self.render_border(writer, ori);
-        self.render_value(writer, ori);
+    pub fn render(&self, writer: &mut StdoutLock) {
+        self.render_border(writer);
+        self.render_value(writer);
     }
 
-    // renders only the items inside the container
-    pub fn render_value(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {}
+    // renders only the items inside the container without rendering their borders
+    pub fn render_value(&self, writer: &mut StdoutLock) {
+        self.items.iter().for_each(|t| {
+            let ori = [self.x0 + 1 + t.y0, self.y0 + 1 + t.y0];
+            t.render_value(writer, &ori);
+        })
+    }
 
     // renders only the container border
-    pub fn render_border(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
-        let [xb, yb] = [ori[0] + 1, ori[1]];
+    pub fn render_border(&self, writer: &mut StdoutLock) {
+        let [_, pol, pot, _, pir, pil, pit, pib] = spread_padding(&self.padding);
+        let [xb, yb] = [self.x0 + pol + 1, self.y0 + pot];
         let mut s = format!("\x1b[{};{}f", yb, xb);
 
-        let [_, _, _, _, pir, pil, pit, pib] = spread_padding(&self.padding);
         let wb = pil + 1 + self.w + 1 + pir;
         let hb = pit + 1 + self.h + 1 + pib;
 

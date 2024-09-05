@@ -69,9 +69,9 @@ fn main() {
         input_object.render_value(&mut writer, &pos);
         input_object.render_border(&mut writer, &pos);
 
-        // let c = term.container_ref_mut(&[0, 9]).unwrap();
-        // c.border = ragout::space_awareness::Border::Uniform('0');
-        // c.render_border(&mut writer, &[c.x0 + 1, c.y0 + 1]);
+        let c = term.container_ref_mut(&[0, 9]).unwrap();
+        c.border = ragout::space_awareness::Border::Uniform('0');
+        c.render_border(&mut writer);
 
         _ = term.sync_cursor(&mut writer);
 
