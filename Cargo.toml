@@ -12,8 +12,16 @@ exclude = ["resources/logs/", "Cargo.lock"]
 documentation = "https://docs.rs/ragout"
 
 [[example]]
-name = "basic"
+name = "e3"
+path = "examples/events3.rs"
+
+[[example]]
+name = "input"
 path = "examples/basic.rs"
+
+[[example]]
+name = "mi"
+path = "examples/mouse.rs"
 
 [[example]]
 name = "events"
