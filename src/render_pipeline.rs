@@ -1,23 +1,30 @@
 use crate::object_tree::*;
 use crate::space_awareness::{Border, Padding};
+use crate::themes::{Style, Theme};
 
+use std::collections::HashMap;
 use std::io::{StdoutLock, Write};
-
-// trait Renderer {
-//     fn render(&self, writer: &mut StdoutLock) {}
-//     fn clear(&self, writer: &mut StdoutLock) {}
-//     fn place(&mut self, writer: &mut StdoutLock, x: u16, y: u16) {}
-//     fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
-//         (vec![], [0, 0])
-//     }
-//     fn decorate(&self) -> [u16; 2] {
-//         [0, 0]
-//     }
-// }
 
 // NOTE: an object can not be initialized unless
 // its id is valid
 // its dimensions are valid, including overlay
+// NOTE: no need for all this bunanza
+// just make a new field for all objects and populate it with a theme fn
+// then all that remains is when it would be best to call that theme fn
+// impl Theme for Term {
+//     fn theme(&self, map: HashMap<&str, Style>) {}
+// }
+
+// TODO: menu selection events
+// TODO: input objects mevement events
+// TODO: emoji selection event
+
+// NOTE: a theme is just a bunch of insertions of styles at certain points
+
+// term render should call a method of term that goes through
+// all children and grand children styles
+//
+// NOTE: need a way to theme an object character by character
 
 impl Term {
     fn prepare(&self) -> (Vec<Option<char>>) {
@@ -62,7 +69,7 @@ impl Term {
     /// assumes that Term::clear() has been used before hand to prepare the terminal display for the
     /// rendering
     // this method doesn't work at all
-    pub fn render(&self, writer: &mut StdoutLock) {
+    pub fn render(&mut self, writer: &mut StdoutLock) {
         let cells = self.prepare();
 
         let mut s = String::new();
@@ -97,6 +104,9 @@ impl Term {
         }
 
         assert_eq!(line, self.h);
+
+        let pos = format!("\x1b[{};{}f", self.cy, self.cx);
+        _ = writer.write(pos.as_bytes());
     }
 
     /// clears the whole terminal display
@@ -113,6 +123,15 @@ impl Term {
 }
 
 impl Container {
+    // renders container border and children
+    pub fn render(&self, writer: &mut StdoutLock) {}
+
+    // renders only the items inside the container
+    pub fn render_value(&self, riter: &mut StdoutLock) {}
+
+    // renders only the container border
+    pub fn render_border(&self, writer: &mut StdoutLock) {}
+
     // adds padding and border to the width and height of the container
     // should be called from the sef render method
     pub fn decorate(&self) -> [u16; 2] {
@@ -334,7 +353,47 @@ impl Container {
     }
 }
 
+// TODO: render_value & render_border & render for text
+// render for container
+
 impl Text {
+    // renders both the text border and value
+    pub fn render(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {}
+
+    // renders only the text border
+    pub fn render_border(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {}
+
+    // renders only the text value
+    pub fn render_value(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
+        let h0 = ori[1];
+
+        let del = |s: &mut String, y: u16| {
+            *s = format!("\x1b[{};{}f\x1b[{}X", y, ori[0], self.w);
+        };
+
+        let put = |s: &mut String, y: u16| {
+            *s = format!("\x1b[{};{}f", h0 + y, ori[0]);
+            for idx in 0..self.w {
+                let c = self.value[(idx + y * self.w) as usize];
+                if c.is_some() {
+                    s.push(c.unwrap());
+                } else {
+                    s.push_str("\x1b[C")
+                };
+            }
+        };
+
+        let mut s = String::new();
+
+        // iterate through lines
+        for idx in 0..self.h {
+            del(&mut s, h0 + idx);
+            writer.write(s.as_bytes());
+            put(&mut s, idx);
+            writer.write(s.as_bytes());
+        }
+    }
+
     pub fn decorate(&self) -> [u16; 2] {
         let [mut wextra, mut hextra] = match self.border {
             Border::None => [self.w, self.h],
@@ -504,7 +563,7 @@ impl Text {
             // every iteration is a line
             // we are not out of the value lines yet
             while line < v1 {
-                println!("==>> line = {}", line);
+                // println!("==>> line = {}", line);
                 // new line we skip padding outer left
                 idx += pol;
                 // border cell
@@ -515,22 +574,22 @@ impl Text {
                 // write values
                 // BUG: doesn't handle multi lined values
                 for vi in 0..self.w as usize {
-                    println!(
-                        "{}: vi{} + (w{} * (line{} - pot{} - 1 - pit{})) = {}",
-                        line!(),
-                        vi,
-                        self.w,
-                        line,
-                        pot,
-                        pit,
-                        vi + (self.w * (line - pot - 1 - pit)) as usize
-                    );
+                    // println!(
+                    //     "{}: vi{} + (w{} * (line{} - pot{} - 1 - pit{})) = {}",
+                    //     line!(),
+                    //     vi,
+                    //     self.w,
+                    //     line,
+                    //     pot,
+                    //     pit,
+                    //     vi + (self.w * (line - pot - 1 - pit)) as usize
+                    // );
                     let i = vi + (self.w * (line - pot - 1 - pit)) as usize;
                     if i < self.value.len() {
-                        lines[idx as usize] = Some(self.value[i]);
+                        lines[idx as usize] = self.value[i];
                     }
                     idx += 1;
-                    log_buf(&lines, wx, hx);
+                    // log_buf(&lines, wx, hx);
                 }
                 // skip inner right padding
                 idx += pir;
@@ -602,7 +661,7 @@ impl Text {
     }
 }
 
-fn spread_padding(p: &Padding) -> [u16; 8] {
+pub fn spread_padding(p: &Padding) -> [u16; 8] {
     match p {
         Padding::None => [0; 8],
         Padding::Inner {

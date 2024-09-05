@@ -28,35 +28,47 @@ impl Events<TermCentral, CoreEvents, WindowResized> for Term {
 }
 
 // Anchor
-struct InnerLogic;
+pub struct InnerLogic;
 
 // Permit
-struct InputCentral;
+pub struct BasicInput;
 
 impl EventsConclusion<InnerLogic> for Option<String> {}
-impl EventsTrigger<InnerLogic> for KbdEvent {}
+impl EventsTrigger<InnerLogic> for (&KbdEvent, &mut StdoutLock<'static>) {}
 
-impl Events<InputCentral, InnerLogic, KbdEvent> for Text {
-    fn fire(&mut self, input: KbdEvent) -> Option<String> {
+use std::io::StdoutLock;
+
+impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a mut StdoutLock<'static>)> for Text {
+    fn fire(&mut self, values: (&'a KbdEvent, &'a mut StdoutLock<'static>)) -> Option<String> {
+        let (input, writer) = values;
         // input submission
-        match (input.char, input.modifiers) {
+        match (&input.char, &input.modifiers) {
             // enter hit, submit input from the active input text item
             (Char::CC(CC::CR), Modifiers(0)) => {}
             // just a backspace, erases the char behind the cursor
-            (Char::CC(CC::BS), Modifiers(0)) => {}
+            (Char::CC(CC::BS), Modifiers(0)) => self.delete(),
             // a normal char input with no modifiers
             // put char behind the cursor
-            (Char::Char(c), Modifiers(0)) => {}
+            (Char::Char(c), Modifiers(0)) => {
+                self.put_char(*c, writer);
+            }
             // arrow up, move up in input
-            (Char::CC(CC::Up), Modifiers(0)) => {}
+            (Char::CC(CC::Up), Modifiers(0)) => self.up(),
             // arrow down, move in input
-            (Char::CC(CC::Down), Modifiers(0)) => {}
+            (Char::CC(CC::Down), Modifiers(0)) => self.down(),
+
             // arrow right
-            (Char::CC(CC::Right), Modifiers(0)) => {}
+            (Char::CC(CC::Right), Modifiers(0)) => self.right(),
             // arrow left
-            (Char::CC(CC::Left), Modifiers(0)) => {}
-            (Char::CC(CC::Home), Modifiers(0)) => {}
-            (Char::CC(CC::End), Modifiers(0)) => {}
+            (Char::CC(CC::Left), Modifiers(0)) => self.left(),
+            // go to home
+            (Char::CC(CC::Home), Modifiers(0)) => self.home(),
+            // go to end
+            (Char::CC(CC::End), Modifiers(0)) => self.end(),
+            // go to home vertical
+            (Char::CC(CC::Home), Modifiers(4)) => self.homev(),
+            // go to end
+            (Char::CC(CC::End), Modifiers(4)) => self.endv(),
 
             _ => return None,
         }

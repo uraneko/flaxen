@@ -1,59 +1,101 @@
 use crate::object_tree::Text;
 use std::io::{StdoutLock, Write};
 
+// inner logic of the input type of text objects
 impl Text {
     // submit user input to the program
-    fn submit(&mut self) {}
-}
+    pub fn submit(&mut self) {}
 
-// raw mode:
-// you need to create exetrns for C functions from unistd.h
-// Specifically to enable raw mode you need tcgetattr and tcsetattr functions.
-
-///
-/// Enables terminal raw mode and initializes the necessary variables for behaving in the raw mode.
-///
-/// Takes a [`&str`] for the shell prompt (give "" for no prompt) and a bool for the option of running in the terminal alternate screen (give true to run your cli program in alternate screen)
-/// # Errors
-/// Does NOT return errors and never panics
-///
-/// # Example
-///
-/// Basic usage
-///
-/// ```
-/// use ragout::{init, run};
-///
-/// fn main() {
-///     // enter raw mode and initialize necessary variables
-///     // the string literal argument will be the value of the prompt
-///     let (mut sol, mut i, mut h, mut ui) = init("some prompt 🐱 ", true);
-///
-///     'main: loop {
-///         let input = run(&mut i, &mut h, &mut sol, &mut ui);
-///         if !input.is_empty() {
-///             // do some stuff with the user input
-///         }
-///     }
-/// }
-/// ```
-pub fn init(
-    prompt: &str,
-    alt_screen: bool,
-) -> (std::io::StdoutLock<'static>, Inputt, History, String) {
-    // _ = enable_raw_mode();
-
-    let mut sol = std::io::stdout().lock();
-
-    if alt_screen {
-        _ = sol.write(b"\x1b[?1049h");
-        _ = sol.write(b"\x1b[1;1f");
+    pub fn left(&mut self) {
+        if self.cx == 0 && self.cy == 0 {
+            return;
+        }
+        if self.cx == 0 && self.cy < self.h {
+            self.cx = self.w - 1;
+            self.cy -= 1;
+        } else {
+            self.cx -= 1;
+        }
     }
 
-    let i = Inputt::new(prompt, alt_screen);
-    i.write_prompt(&mut sol);
+    pub fn right(&mut self) {
+        if self.cx == self.w - 1 && self.cy == self.h - 1 {
+            return;
+        }
 
-    (sol, i, History::new(), String::new())
+        if self.cx == self.w - 1 && self.cy < self.h {
+            self.cx = 0;
+            self.cy += 1;
+        } else {
+            self.cx += 1;
+        }
+    }
+
+    // TODO: method to allocate more height
+    pub fn up(&mut self) {
+        if self.cy == 0 {
+            return;
+        }
+        self.cy -= 1;
+        // writer.write(b"\x1b[A");
+    }
+
+    pub fn down(&mut self) {
+        if self.cy == self.h - 1 {
+            return;
+        }
+        self.cy += 1;
+    }
+
+    pub fn home(&mut self) {
+        self.cx = 0
+    }
+
+    pub fn homev(&mut self) {
+        self.cy = 0
+    }
+
+    pub fn endv(&mut self) {
+        self.cy = self.h - 1
+    }
+
+    pub fn end(&mut self) {
+        self.cx = self.w - 1
+    }
+
+    // put char if the input cursor points to non-empty (Some(c)) value in the value vec
+    pub fn put_char(&mut self, c: char, writer: &mut StdoutLock) {
+        self.value
+            .insert((self.cx + self.cy * self.w) as usize, Some(c));
+        self.value.remove(self.value.len() - 1);
+
+        if self.cx == self.w - 1 && self.cy == self.h - 1 {
+            return;
+        } else if self.cx == self.w - 1 {
+            self.cx = 0;
+            self.cy += 1;
+        } else {
+            self.cx += 1;
+        }
+    }
+
+    pub fn delete(&mut self) {
+        if self.cx == 0 && self.cy == 0 {
+            return;
+        } else if self.cx == 0 {
+            self.cx = self.w - 1;
+            self.cy -= 1;
+        } else {
+            self.cx -= 1;
+        }
+
+        self.value.remove((self.cx + self.cy * self.w) as usize);
+        self.value.push(None);
+
+        // to delete line of value
+        // position at self.w then call X on self.w
+        // do for all lines then rewrite value
+    }
 }
 
 /// A struct that implements the user input movement and deletion logic inside the terminal raw

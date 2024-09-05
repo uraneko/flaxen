@@ -10,7 +10,7 @@ fn main() {
     let ts = raw_mode();
 
     let mut writer = std::io::stdout().lock();
-    _ = writer.write(b"\x1b[?1049h\r\n\x1b[0;0f");
+    _ = writer.write(b"\x1b[?1049h\x1b[0;0f");
     _ = writer.flush();
 
     let mut reader = std::io::stdin().lock();

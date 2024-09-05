@@ -89,7 +89,7 @@ fn decode_6_bytes(bytes: Vec<u8>, me: &mut MosEvent) {
 fn mouse_gesture(byte: u8, bx: u8, by: u8) -> Gesture {
     match byte {
         35 | 43 | 51 | 59 => Gesture::Release,
-        67 | 71 | 75 | 83 | 87 | 79 | 91 | 95 => Gesture::Move(bx - 33, by - 33),
+        67 | 71 | 75 | 83 | 87 | 79 | 91 | 95 => Gesture::None,
         32 | 40 | 48 | 56 => Gesture::LeftPress,
         33 | 41 | 49 | 57 => Gesture::WheelePress,
         34 | 50 | 52 | 48 => Gesture::RightPress,

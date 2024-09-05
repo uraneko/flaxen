@@ -17,7 +17,7 @@ extern "C" {
 // from /usr/include/asm-generic/termios.h
 #[derive(Debug, Default)]
 #[repr(C)]
-pub(crate) struct winsize {
+pub struct winsize {
     ws_row: u16,
     ws_col: u16,
     ws_xpixel: u16,
@@ -34,18 +34,18 @@ const TIOCGWINSZ: u64 = 0x5413;
 const TIOCSWINSZ: u64 = 0x5414;
 
 impl winsize {
-    pub(crate) fn from_ioctl() -> Self {
+    pub fn from_ioctl() -> Self {
         let mut ws = Default::default();
         _ = unsafe { ioctl(STDOUT_FILENO, TIOCGWINSZ, &mut ws) };
 
         ws
     }
 
-    pub(crate) fn cols(&self) -> u16 {
+    pub fn cols(&self) -> u16 {
         self.ws_col
     }
 
-    pub(crate) fn rows(&self) -> u16 {
+    pub fn rows(&self) -> u16 {
         self.ws_row
     }
 }

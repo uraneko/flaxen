@@ -1,12 +1,14 @@
 use crate::builders::ObjectBuilder;
+use crate::render_pipeline;
 use crate::space_awareness::{between, conflicts, Border, Padding, Point, SpaceAwareness};
-use crate::styles::StyleStrategy;
 use crate::termbuf::winsize;
 
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
 use std::io::Write;
 use std::marker::PhantomData;
+
+// TODO: text position, vertical/horizontal center, start or end
 
 #[derive(Debug)]
 pub struct Zero;
@@ -52,6 +54,235 @@ impl ObjectTree {
         id
     }
 
+    /// returns an optional immutable reference of the term with the provided id if it exists
+    pub fn term_ref(&self, id: u8) -> Option<&Term> {
+        self.terms.iter().find(|t| t.id == id)
+    }
+
+    /// returns an optional mutable reference of the term with the provided id if it exists
+    pub fn term_ref_mut(&mut self, id: u8) -> Option<&mut Term> {
+        self.terms.iter_mut().find(|t| t.id == id)
+    }
+
+    // methods of the has_object series do not check for duplicate ids
+    // because those are already being screened by earlier id assignment methods
+    // and there is no way in the api to bypass those checks and push an object to the tree
+    // which means that duplicate ids can never happen
+    pub fn has_term(&self, term: u8) -> bool {
+        self.terms.iter().find(|t| t.id == term).is_some()
+    }
+
+    pub fn assign_term_id(&self) -> u8 {
+        let mut id = 0;
+        for term in &self.terms {
+            if term.id == id {
+                id += 1;
+            } else {
+                break;
+            }
+        }
+
+        id
+    }
+}
+
+enum SpaceError {
+    E1,
+}
+
+#[derive(Debug)]
+pub struct Term {
+    pub overlay: bool,
+    pub id: u8,
+    pub cache: HashMap<&'static str, Vec<u8>>,
+    pub buf: Vec<Option<char>>,
+    pub w: u16,
+    pub h: u16,
+    pub cx: u16,
+    pub cy: u16,
+    pub containers: Vec<Container>,
+    pub registry: HashSet<&'static str>,
+    pub border: Border,
+    pub padding: Padding,
+    pub active: Option<[u8; 3]>,
+}
+
+impl Default for Term {
+    fn default() -> Term {
+        let ws = winsize::from_ioctl();
+
+        let mut buf = vec![];
+        buf.resize((ws.rows() * ws.cols()) as usize, None);
+
+        Term {
+            buf,
+            w: ws.cols(),
+            h: ws.rows(),
+            registry: HashSet::from(["Core"]),
+            active: None,
+            padding: Padding::None,
+            border: Border::None,
+            overlay: false,
+            id: 0,
+            cache: HashMap::new(),
+            cx: 0,
+            cy: 0,
+            containers: vec![],
+        }
+    }
+}
+
+impl Term {
+    pub fn new(id: u8) -> Self {
+        let ws = winsize::from_ioctl();
+
+        let mut buf = vec![];
+        buf.resize((ws.rows() * ws.cols()) as usize, None);
+
+        Term {
+            id,
+            buf,
+            w: ws.cols(),
+            h: ws.rows(),
+            registry: HashSet::from(["Core"]),
+            padding: Padding::None,
+            border: Border::Uniform('*'),
+            ..Default::default()
+        }
+    }
+
+    pub fn from_builder(ob: &ObjectBuilder) -> Self {
+        ob.term()
+    }
+
+    // prints the buffer, respecting width and height
+    pub fn print_buf(&self) {
+        for idxr in 0..self.buf.len() / self.w as usize {
+            print!("\r\n");
+            for idxc in 0..self.buf.len() / self.h as usize {
+                print!("{:?}", self.buf[idxr]);
+            }
+        }
+    }
+
+    /// adds a Permit type to the term's registry
+    pub fn permit<P>(&mut self) {
+        self.registry.insert(type_name::<P>());
+    }
+
+    /// removes a Permit type to the term's registry
+    pub fn revoke<P>(&mut self) -> bool {
+        self.registry.remove(type_name::<P>())
+    }
+
+    /// checks if term has a Permit in its registry
+    pub fn has_permit<P>(&self) -> bool {
+        self.registry.contains(type_name::<P>())
+    }
+
+    // NOTE: for now gonna ignore overlay totally
+
+    // called on container auto and basic initializers
+    pub fn assign_valid_container_area(
+        &self, // term
+        cont: &Container,
+        // layer: u8,
+    ) -> Result<(), SpaceError> {
+        let [x0, y0] = [cont.x0, cont.y0];
+        let [w, h] = cont.decorate();
+
+        // check if new area + padding + border is bigger than term area
+        // FIX: the first area check is wrong
+        // it should be:
+        // if overlay in parent is on then current check
+        // else parent area - all children area check against new container area
+        if self.w * self.h < w * h
+            || x0 > self.w
+            || y0 > self.h
+            || w > self.w
+            || h > self.h
+            || x0 + w > self.w
+            || y0 + h > self.h
+        {
+            return Err(SpaceError::E1);
+        }
+
+        let mut e = 0;
+
+        self.containers.iter().for_each(|c| {
+            if e == 0 {
+                let [right, left, top, bottom] = conflicts(x0, y0, w, h, c.x0, c.y0, c.w, c.h);
+                // conflict case
+                if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
+                    // TODO: actually handle overlay logic
+                    e = 1;
+                }
+            }
+        });
+
+        if e == 1 {
+            return Err(SpaceError::E1);
+        }
+
+        Ok(())
+    }
+
+    pub fn make_active(&mut self, id: [u8; 3], writer: &mut StdoutLock) -> Result<(), TreeErrors> {
+        if !self.has_input(&id) {
+            return Err(TreeErrors::BadID);
+        }
+        self.active = Some(id);
+        self.sync_cursor(writer);
+
+        Ok(())
+    }
+
+    // TODO: dont render everything at every iteration
+    // only render all objects before loop
+    // then rerender what changes inside an iteration
+
+    pub fn locate_text(&self, id: &[u8; 3]) -> Result<[u16; 2], TreeErrors> {
+        if let (Some(cont), Some(input)) =
+            (self.container_ref(&[id[0], id[1]]), self.input_ref(&id))
+        {
+            let [_, cpol, cpot, _, _, cpil, cpit, _] =
+                render_pipeline::spread_padding(&cont.padding);
+            let cb = if let Border::None = cont.border { 0 } else { 1 };
+
+            let [_, ipol, ipot, _, _, ipil, ipit, _] =
+                render_pipeline::spread_padding(&input.padding);
+            let ib = if let Border::None = input.border {
+                0
+            } else {
+                1
+            };
+            Ok([
+                cpol + cb + cpil + cont.x0 + ipol + ib + ipil + input.x0 + 1 + input.cx,
+                cpot + cb + cpit + cont.y0 + ipot + ib + ipit + input.y0 + input.cy,
+            ])
+        } else {
+            return Err(TreeErrors::BadID);
+        }
+    }
+
+    pub fn sync_cursor(&mut self, writer: &mut StdoutLock) -> Result<(), TreeErrors> {
+        let id = self.active.unwrap();
+
+        let Ok([cx, cy]) = self.locate_text(&id) else {
+            return Err(TreeErrors::BadID);
+        };
+
+        self.cx = cx;
+        self.cy = cy;
+
+        let pos = format!("\x1b[{};{}f", self.cy, self.cx);
+        _ = writer.write(pos.as_bytes());
+
+        Ok(())
+    }
+}
+
+impl Term {
     pub fn container(
         &mut self,
         id: &[u8],
@@ -62,20 +293,18 @@ impl ObjectTree {
         border: Border,
         padding: Padding,
     ) -> Result<(), TreeErrors> {
-        if id.len() > 2 || !self.has_term(id[0]) || self.has_container(&[id[0], id[1]]) {
+        if id.len() > 2 || self.has_container(&[id[0], id[1]]) {
             eprintln!("bad id");
             return Err(TreeErrors::BadID);
         }
 
-        let term = self.term_ref_mut(id[0]).unwrap();
-
         let cont = Container::new([id[0], id[1]], x0, y0, w, h, border, padding);
 
-        if term.assign_valid_container_area(&cont).is_err() {
+        if self.assign_valid_container_area(&cont).is_err() {
             return Err(TreeErrors::BoundsNotRespected);
         }
 
-        term.containers.push(cont);
+        self.containers.push(cont);
 
         Ok(())
     }
@@ -174,7 +403,7 @@ impl ObjectTree {
         y0: u16,
         w: u16,
         h: u16,
-        value: &[char],
+        value: &[Option<char>],
         border: Border,
         padding: Padding,
     ) -> Result<(), TreeErrors> {
@@ -232,32 +461,14 @@ impl ObjectTree {
     //     Ok(id)
     // }
 
-    /// returns an optional immutable reference of the term with the provided id if it exists
-    pub fn term_ref(&self, id: u8) -> Option<&Term> {
-        self.terms.iter().find(|t| t.id == id)
-    }
-
-    /// returns an optional mutable reference of the term with the provided id if it exists
-    pub fn term_ref_mut(&mut self, id: u8) -> Option<&mut Term> {
-        self.terms.iter_mut().find(|t| t.id == id)
-    }
-
     /// returns an optional immutable reference of the container with the provided id if it exists
     pub fn container_ref(&self, id: &[u8; 2]) -> Option<&Container> {
-        let Some(term) = self.term_ref(id[0]) else {
-            return None;
-        };
-
-        term.containers.iter().find(|c| &c.id == id)
+        self.containers.iter().find(|c| &c.id == id)
     }
 
     /// returns an optional mutable reference of the container with the provided id if it exists
     pub fn container_ref_mut(&mut self, id: &[u8; 2]) -> Option<&mut Container> {
-        let Some(term) = self.term_ref_mut(id[0]) else {
-            return None;
-        };
-
-        term.containers.iter_mut().find(|c| &c.id == id)
+        self.containers.iter_mut().find(|c| &c.id == id)
     }
 
     /// returns an optional immutable reference of the input with the provided id if it exists
@@ -304,22 +515,8 @@ impl ObjectTree {
             .find(|input| input.id[2] % 2 != 0 && input.id == *id)
     }
 
-    // methods of the has_object series do not check for duplicate ids
-    // because those are already being screened by earlier id assignment methods
-    // and there is no way in the api to bypass those checks and push an object to the tree
-    // which means that duplicate ids can never happen
-    pub fn has_term(&self, term: u8) -> bool {
-        self.terms.iter().find(|t| t.id == term).is_some()
-    }
-
     pub fn has_container(&self, id: &[u8; 2]) -> bool {
-        match self.term_ref(id[0]) {
-            Some(term) => term.containers.iter().find(|c| c.id == *id).is_some(),
-            None => {
-                eprintln!("no term with such id: {}", id[0]);
-                false
-            }
-        }
+        self.containers.iter().find(|c| c.id == *id).is_some()
     }
 
     pub fn has_input(&self, id: &[u8; 3]) -> bool {
@@ -350,26 +547,13 @@ impl ObjectTree {
         }
     }
 
-    pub fn assign_term_id(&self) -> u8 {
-        let mut id = 0;
-        for term in &self.terms {
-            if term.id == id {
-                id += 1;
-            } else {
-                break;
-            }
-        }
-
-        id
-    }
-
     pub fn assign_container_id(&self, term: u8) -> u8 {
         // NOTE: this method should always be called inside another method/fn
         // that checks before calling this method that
         // the parent term with the given id exists
-        let term = self.term_ref(term).unwrap();
+
         let mut id = 0;
-        for cont in &term.containers {
+        for cont in &self.containers {
             if cont.id[1] == id {
                 id += 1;
             } else {
@@ -416,142 +600,6 @@ impl ObjectTree {
         }
 
         id
-    }
-}
-
-enum SpaceError {
-    E1,
-}
-
-#[derive(Debug)]
-pub struct Term {
-    pub overlay: bool,
-    pub id: u8,
-    pub cache: HashMap<&'static str, Vec<u8>>,
-    pub buf: Vec<Option<char>>,
-    pub w: u16,
-    pub h: u16,
-    pub cx: u16,
-    pub cy: u16,
-    pub containers: Vec<Container>,
-    pub registry: HashSet<&'static str>,
-    pub border: Border,
-    pub padding: Padding,
-}
-
-impl Default for Term {
-    fn default() -> Term {
-        let ws = winsize::from_ioctl();
-
-        let mut buf = vec![];
-        buf.resize((ws.rows() * ws.cols()) as usize, None);
-
-        Term {
-            buf,
-            w: ws.cols(),
-            h: ws.rows(),
-            registry: HashSet::from(["Core"]),
-            padding: Padding::None,
-            border: Border::None,
-            overlay: false,
-            id: 0,
-            cache: HashMap::new(),
-            cx: 0,
-            cy: 0,
-            containers: vec![],
-        }
-    }
-}
-
-impl Term {
-    pub fn new(id: u8) -> Self {
-        let ws = winsize::from_ioctl();
-
-        let mut buf = vec![];
-        buf.resize((ws.rows() * ws.cols()) as usize, None);
-
-        Term {
-            id,
-            buf,
-            w: ws.cols(),
-            h: ws.rows(),
-            registry: HashSet::from(["Core"]),
-            padding: Padding::None,
-            border: Border::Uniform('*'),
-            ..Default::default()
-        }
-    }
-
-    pub fn from_builder(ob: &ObjectBuilder) -> Self {
-        ob.term()
-    }
-
-    // prints the buffer, respecting width and height
-    pub fn print_buf(&self) {
-        for idxr in 0..self.buf.len() / self.w as usize {
-            print!("\r\n");
-            for idxc in 0..self.buf.len() / self.h as usize {
-                print!("{:?}", self.buf[idxr]);
-            }
-        }
-    }
-
-    /// adds a Permit type to the term's registry
-    pub fn permit<P>(&mut self) {
-        self.registry.insert(type_name::<P>());
-    }
-
-    /// removes a Permit type to the term's registry
-    pub fn revoke<P>(&mut self) -> bool {
-        self.registry.remove(type_name::<P>())
-    }
-
-    /// checks if term has a Permit in its registry
-    pub fn has_permit<P>(&self) -> bool {
-        self.registry.contains(type_name::<P>())
-    }
-
-    // NOTE: for now gonna ignore overlay totally
-
-    // called on container auto and basic initializers
-    pub fn assign_valid_container_area(
-        &self, // term
-        cont: &Container,
-        // layer: u8,
-    ) -> Result<(), SpaceError> {
-        let [x0, y0] = [cont.x0, cont.y0];
-        let [w, h] = cont.decorate();
-
-        // check if new area + padding + border is bigger than term area
-        if self.w * self.h < w * h
-            || x0 > self.w
-            || y0 > self.h
-            || w > self.w
-            || h > self.h
-            || x0 + w > self.w
-            || y0 + h > self.h
-        {
-            return Err(SpaceError::E1);
-        }
-
-        let mut e = 0;
-
-        self.containers.iter().for_each(|c| {
-            if e == 0 {
-                let [right, left, top, bottom] = conflicts(x0, y0, w, h, c.x0, c.y0, c.w, c.h);
-                // conflict case
-                if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
-                    // TODO: actually handle overlay logic
-                    e = 1;
-                }
-            }
-        });
-
-        if e == 1 {
-            return Err(SpaceError::E1);
-        }
-
-        Ok(())
     }
 }
 
@@ -668,6 +716,10 @@ impl Container {
         let [w, h] = text.decorate();
 
         // check if new area is bigger than parent container area
+        // FIX: the first area check is wrong
+        // it should be:
+        // if overlay in parent is on then current check
+        // else parent area - all children area check against new container area
         if self.w * self.h < w * h
             || x0 > self.w
             || y0 > self.h
@@ -709,7 +761,7 @@ pub struct Text {
     // editable content or not
     pub edit: bool,
     pub id: [u8; 3],
-    pub value: Vec<char>,
+    pub value: Vec<Option<char>>,
     pub w: u16,
     pub h: u16,
     pub cx: u16,
@@ -729,7 +781,18 @@ impl Default for Text {
             h: 3,
             x0: 5,
             y0: 3,
-            value: vec!['h', 'e', 'l', 'l', 'o', ' ', 't', 'e', 'r', 'm'],
+            value: vec![
+                Some('h'),
+                Some('e'),
+                Some('l'),
+                Some('l'),
+                Some('o'),
+                Some(' '),
+                Some('t'),
+                Some('e'),
+                Some('r'),
+                Some('m'),
+            ],
             cx: 0,
             cy: 0,
             registry: HashSet::new(),
@@ -750,8 +813,7 @@ impl Text {
         y0: u16,
         w: u16,
         h: u16,
-        value: &[char],
-
+        value: &[Option<char>],
         border: Border,
         padding: Padding,
     ) -> Text {
@@ -765,6 +827,7 @@ impl Text {
             padding,
             value: {
                 let mut v = Vec::with_capacity((w * h) as usize);
+                v.resize((w * h) as usize, None);
                 v.extend_from_slice(value);
 
                 v

@@ -223,18 +223,6 @@ impl Style {
     }
 }
 
-pub trait Stylize {
-    fn apply(&self, sol: &mut StdoutLock);
-}
-
-impl Stylize for String {
-    fn apply(&self, sol: &mut StdoutLock) {
-        _ = sol.write(&self.as_bytes());
-        // unless the whole line is redrawn, the style would not update
-        _ = sol.flush();
-    }
-}
-
 /// can only have one combination that results in the same sum
 /// 0 means reset all
 /// 1 means bold
@@ -246,7 +234,6 @@ impl Stylize for String {
 /// 64 means blink
 /// 128 means faint
 /// the greatest effects config value possible is 255
-const style_configuration: u32 = 0;
 
 #[cfg(test)]
 mod tests {
@@ -261,49 +248,71 @@ struct Token {}
 use std::collections::HashMap;
 use std::ops::Range;
 
-#[derive(Debug)]
-pub enum StyleStrategy {
-    // tokens are grouped by conditions
-    Conditional,
-    // tokens are grouped by appearance, first second and so forth,
-    // takes an argument that decides how many tokens would go in one group
-    // 1 means that each token is a group, 2 means that every two consecutive tokens make up a group
-    Sequential(u8),
-}
-
-// stylegraphs describe how styles are applied to bodies of text
-pub struct StyleGraph {
-    // fn that takes a text value and tokenizes it in some way
-    tokenizer: fn(&[char], StyleStrategy),
-    // a map matching a style id to a range inside the value
-    //// that will be styled
-    map: HashMap<StyleId, Vec<Range<usize>>>,
-    rule: StyleStrategy,
-}
-
-impl StyleGraph {
-    fn new(f: fn(&[char], StyleStrategy), rule: StyleStrategy) -> Self {
-        Self {
-            map: HashMap::new(),
-            tokenizer: f,
-            rule,
-        }
+pub trait Theme {
+    fn styles(&mut self, styles: Vec<Style>) -> &str {
+        "\x1b[0m"
     }
 
-    fn tokenize(&self) {}
-
-    fn tokenizer(&mut self, f: fn(&[char], StyleStrategy)) {
-        self.tokenizer = f;
+    // usually used on input
+    // indicates the style of the first word in an input text
+    fn cmd(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
     }
 
-    fn randomize(&mut self) {}
-
-    // manually pair a style id with a Range in the map
-    fn pair(&mut self, sid: u8, range: Range<usize>) {}
-
-    fn rule(&mut self, mr: StyleStrategy) {
-        self.rule = mr;
+    // usually used on input
+    // describes the style of a word that starts with '--' or '-' in an input text
+    fn param(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
     }
+
+    // usually used on input
+    // describes the style of the arg that comes after a param
+    fn arg(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
+    }
+
+    // usually used on input
+    // describes the style of a flag, which represents a param with no arg
+    fn flag(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
+    }
+
+    // describes the style of an object border
+    fn border(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
+    }
+
+    fn custom(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
+    }
+
+    // describes the style of a whole body of text
+    fn text(&mut self, style: &Style) -> &str {
+        "\x1b[0m"
+    }
+
+    // gets called inside an Event that colors all objects
+    // applies what the user chooses to apply for that instance of a type from the function above
+    // the only method of this trait that is required (no default impl)
+    // NOTE: gets called inside term.process() right before term.clear() in preparation for
+    // rendering
+    fn theme(&mut self, map: &HashMap<&str, Style>);
 }
 
-trait Theme {}
+// NOTE: Theme trait usage:
+// 1. implement the methods that you want to implement
+//    - ok, but what do these methods do???
+// 2. implement the theme method which calls the methods you choose to call from amongst the
+//    implemented methods of the trait
+// 3. impl theming Events fire method which calls the theme method of the Theme trait on all
+//    objects in the active Term
+//    the Theme trait should take a generic so that external crates can implement it, just like
+//    Events trait
+//    in the theme() method you take your styles and iterate through the going to be rendered
+//    buffer of every object and you make conditions for when to apply which style
+//    technically, only the theme method is needed and should take a hashmap / vec if styles
+
+// a theme being implemented means 2 things
+// border styles and value styles
+// for a container there is only border
+// for a text there is both border and value

@@ -7,30 +7,39 @@ use ragout::*;
 fn main() {
     let mut ot = ObjectTree::new();
 
-    ot.fire(InitEvent::Container(&[0, 9], 3, 3, 54, 14));
-    ot.fire(InitEvent::NonEdit(
-        &[0, 9, 5],
-        6, // x0
-        1, // y0
-        5, // w
-        1, // h
-        // border *
-        // padding outer: 1 1 1 1
-        &['h', 'e', 'l', 'l', 'o'],
+    let mut term = ot.term_ref_mut(0).unwrap();
+
+    term.fire(InitEvent::Container(&[0, 9], 3, 2, 54, 16));
+    term.fire(InitEvent::Input(
+        &[0, 9, 2],
+        6,  // x0
+        0,  // y0
+        30, // w
+        1,  // h
+            // border *
+            // padding outer: 1 1 1 1
+            // &['h', 'e', 'l', 'l', 'o'],
     ));
 
-    ot.fire(InitEvent::NonEdit(
+    term.fire(InitEvent::NonEdit(
         &[0, 9, 1],
-        32, // x0
-        6,  // y0
+        27, // x0
+        7,  // y0
         // BUG: setting width to 6 would break the example
         // because the value writing for loop will try to access value[5] which crashes since
         // value.len = 5 and so looping on 0..width stops after idx 4 of value with width = 5
-        5, // w
-        2, // h
+        12, // w
+        2,  // h
         // border *
         // padding outer: 1 1 1 1
-        &['w', 'o', 'r', 'l', 'd', '!'],
+        &[
+            Some('w'),
+            Some('o'),
+            Some('r'),
+            Some('l'),
+            Some('d'),
+            Some('!'),
+        ],
     ));
     // TODO: if a value is given for text at initialization, it needs to be checked for bounds
     // validity,
@@ -45,6 +54,39 @@ fn main() {
     // });
 
     // println!("{:#?}", ot);
+
+    term.fire(InitEvent::Container(&[0, 2], 86, 19, 53, 14));
+    term.fire(InitEvent::NonEdit(
+        &[0, 2, 5],
+        6,  // x0
+        1,  // y0
+        15, // w
+        1,  // h
+        // border *
+        // padding outer: 1 1 1 1
+        &[Some('h'), Some('e'), Some('l'), Some('l'), Some('o')],
+    ));
+
+    term.fire(InitEvent::NonEdit(
+        &[0, 2, 1],
+        27, // x0
+        6,  // y0
+        // BUG: setting width to 6 would break the example
+        // because the value writing for loop will try to access value[5] which crashes since
+        // value.len = 5 and so looping on 0..width stops after idx 4 of value with width = 5
+        4, // w
+        2, // h
+        // border *
+        // padding outer: 1 1 1 1
+        &[
+            Some('w'),
+            Some('o'),
+            Some('r'),
+            Some('l'),
+            Some('d'),
+            Some('!'),
+        ],
+    ));
 
     let mut writer = std::io::stdout().lock();
 

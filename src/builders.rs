@@ -46,6 +46,7 @@ impl ObjectBuilder {
             border: self.border,
             id: self.id[0],
             overlay: self.overlay,
+            active: None,
             containers: vec![],
             cx: 0,
             cy: 0,

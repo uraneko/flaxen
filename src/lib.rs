@@ -7,22 +7,21 @@ pub mod events;
 pub mod history;
 pub mod input;
 pub mod kbd_decode;
+pub mod mouse_input;
 pub mod presets;
 pub mod raw_mode;
 pub mod render_pipeline;
 pub mod space_awareness;
-pub mod styles;
 pub mod termbuf;
+pub mod themes;
 
 pub use kbd_decode::*;
 pub(crate) use raw_mode::*;
-use termbuf::*;
+pub use termbuf::*;
 
 use std::ops::Range;
 
 pub mod object_tree;
-
-use crate::styles::StyleStrategy;
 
 // TODO:
 // 1 => raw mode + alternate screen + winsize + term buffer of NUL... done
@@ -45,3 +44,6 @@ use commissioner::Commissioner;
 // 4 do themes
 //
 // refactor space/rendering into a more robust approach
+
+// now that raw mode, termsize reading, user input utf8 read/decoding, ids validity, space bounds, rendering and the events trait are done
+// this big refactor should be over once themes and core builtin events are written

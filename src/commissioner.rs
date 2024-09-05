@@ -146,10 +146,10 @@ async fn ragout<P, A, T, IE, R>(
 }
 
 pub enum InitEvent {
-    Term(u8),
+    // Term(u8),
     Container(&'static [u8], u16, u16, u16, u16),
     Input(&'static [u8], u16, u16, u16, u16),
-    NonEdit(&'static [u8], u16, u16, u16, u16, &'static [char]),
+    NonEdit(&'static [u8], u16, u16, u16, u16, &'static [Option<char>]),
 }
 
 impl EventsTrigger<CreateObject> for InitEvent {}
@@ -162,10 +162,10 @@ impl EventsConclusion<CreateObject> for () {}
 
 pub struct Anchor;
 
-impl Events<Anchor, CreateObject, InitEvent> for ObjectTree {
+impl Events<Anchor, CreateObject, InitEvent> for Term {
     fn fire(&mut self, input: InitEvent) {
         if match input {
-            InitEvent::Term(term) => self.term(term),
+            // InitEvent::Term(term) => self.term(term),
             InitEvent::Container(id, x0, y0, w, h) => self.container(
                 id,
                 x0,
