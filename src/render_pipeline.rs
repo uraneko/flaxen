@@ -361,7 +361,39 @@ impl Text {
     pub fn render(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {}
 
     // renders only the text border
-    pub fn render_border(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {}
+    pub fn render_border(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
+        let [xb, yb] = [ori[0] - 2, ori[1] - 2];
+        let mut s = format!("\x1b[{};{}f", yb, xb);
+
+        let [_, _, _, _, pir, pil, pit, pib] = spread_padding(&self.padding);
+        let wb = pil + 1 + self.w + 1 + pir;
+        let hb = pit + 1 + self.h + 1 + pib;
+
+        if let Border::Uniform(c) = self.border {
+            for _ in 0..wb {
+                s.push(c)
+            }
+
+            for idx in 1..hb - 1 {
+                s.push_str(&format!(
+                    "\x1b[{};{}f{}\x1b[{};{}f{}",
+                    yb + idx,
+                    xb,
+                    c,
+                    yb + idx,
+                    xb + wb - 1,
+                    c
+                ));
+            }
+
+            s.push_str(&format!("\x1b[{};{}f", yb + hb - 1, xb));
+            for _ in 0..wb {
+                s.push(c)
+            }
+
+            writer.write(s.as_bytes());
+        }
+    }
 
     // renders only the text value
     pub fn render_value(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {

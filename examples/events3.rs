@@ -67,6 +67,7 @@ fn main() {
         _ = input_object.fire((&ke, &mut writer));
 
         input_object.render_value(&mut writer, &pos);
+        input_object.render_border(&mut writer, &pos);
         // refresh the display with new changes
         // print!("\r\n\n{:?}", input_object.value);
 

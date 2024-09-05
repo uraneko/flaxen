@@ -48,7 +48,9 @@ impl Text {
     }
 
     pub fn home(&mut self) {
-        self.cx = 0
+        self.cx = 0;
+
+        self.border = crate::space_awareness::Border::Uniform('!');
     }
 
     pub fn homev(&mut self) {
@@ -60,7 +62,9 @@ impl Text {
     }
 
     pub fn end(&mut self) {
-        self.cx = self.w - 1
+        self.cx = self.w - 1;
+
+        self.border = crate::space_awareness::Border::Uniform('^');
     }
 
     // put char if the input cursor points to non-empty (Some(c)) value in the value vec
