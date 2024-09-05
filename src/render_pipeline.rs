@@ -124,13 +124,48 @@ impl Term {
 
 impl Container {
     // renders container border and children
-    pub fn render(&self, writer: &mut StdoutLock) {}
+    pub fn render(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
+        self.render_border(writer, ori);
+        self.render_value(writer, ori);
+    }
 
     // renders only the items inside the container
-    pub fn render_value(&self, riter: &mut StdoutLock) {}
+    pub fn render_value(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {}
 
     // renders only the container border
-    pub fn render_border(&self, writer: &mut StdoutLock) {}
+    pub fn render_border(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
+        let [xb, yb] = [ori[0] + 1, ori[1]];
+        let mut s = format!("\x1b[{};{}f", yb, xb);
+
+        let [_, _, _, _, pir, pil, pit, pib] = spread_padding(&self.padding);
+        let wb = pil + 1 + self.w + 1 + pir;
+        let hb = pit + 1 + self.h + 1 + pib;
+
+        if let Border::Uniform(c) = self.border {
+            for _ in 0..wb {
+                s.push(c)
+            }
+
+            for idx in 1..hb - 1 {
+                s.push_str(&format!(
+                    "\x1b[{};{}f{}\x1b[{};{}f{}",
+                    yb + idx,
+                    xb,
+                    c,
+                    yb + idx,
+                    xb + wb - 1,
+                    c
+                ));
+            }
+
+            s.push_str(&format!("\x1b[{};{}f", yb + hb - 1, xb));
+            for _ in 0..wb {
+                s.push(c)
+            }
+
+            writer.write(s.as_bytes());
+        }
+    }
 
     // adds padding and border to the width and height of the container
     // should be called from the sef render method
@@ -358,7 +393,10 @@ impl Container {
 
 impl Text {
     // renders both the text border and value
-    pub fn render(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {}
+    pub fn render(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {
+        self.render_border(writer, origin);
+        self.render_value(writer, origin);
+    }
 
     // renders only the text border
     pub fn render_border(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {

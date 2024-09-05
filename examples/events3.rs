@@ -68,8 +68,10 @@ fn main() {
 
         input_object.render_value(&mut writer, &pos);
         input_object.render_border(&mut writer, &pos);
-        // refresh the display with new changes
-        // print!("\r\n\n{:?}", input_object.value);
+
+        // let c = term.container_ref_mut(&[0, 9]).unwrap();
+        // c.border = ragout::space_awareness::Border::Uniform('0');
+        // c.render_border(&mut writer, &[c.x0 + 1, c.y0 + 1]);
 
         _ = term.sync_cursor(&mut writer);
 

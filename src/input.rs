@@ -61,10 +61,12 @@ impl Text {
         self.cy = self.h - 1
     }
 
+    // BUG: unicode characters take more space than one cell
+
     pub fn end(&mut self) {
         self.cx = self.w - 1;
 
-        self.border = crate::space_awareness::Border::Uniform('^');
+        self.border = crate::space_awareness::Border::Uniform('+');
     }
 
     // put char if the input cursor points to non-empty (Some(c)) value in the value vec

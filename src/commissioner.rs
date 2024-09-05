@@ -190,7 +190,7 @@ impl Events<Anchor, CreateObject, InitEvent> for Term {
                 y0,
                 w,
                 h,
-                Border::Uniform('*'),
+                Border::Uniform('~'),
                 Padding::InOut {
                     outer_top: 1,
                     outer_bottom: 1,
