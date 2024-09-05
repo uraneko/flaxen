@@ -131,10 +131,20 @@ impl Container {
 
     // renders only the items inside the container without rendering their borders
     pub fn render_value(&self, writer: &mut StdoutLock) {
+        let [_, pol, pot, _, _, pil, pit, _] = spread_padding(&self.padding);
+        let cb = if let Border::None = self.border { 0 } else { 1 };
+
         self.items.iter().for_each(|t| {
-            let ori = [self.x0 + 1 + t.y0, self.y0 + 1 + t.y0];
+            let [_, tpol, tpot, _, _, tpil, tpit, _] = spread_padding(&t.padding);
+            let tb = if let Border::None = t.border { 0 } else { 1 };
+
+            let ori = [
+                self.x0 + pol + cb + pil + t.x0 + tpol + tb + tpil + 1,
+                self.y0 + pot + cb + pit + t.y0 + tpot + tb + tpit,
+            ];
+
             t.render_value(writer, &ori);
-        })
+        });
     }
 
     // renders only the container border

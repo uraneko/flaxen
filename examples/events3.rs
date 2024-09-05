@@ -66,12 +66,12 @@ fn main() {
         let input_object = term.input_ref_mut(&[0, 9, 2]).unwrap();
         _ = input_object.fire((&ke, &mut writer));
 
-        input_object.render_value(&mut writer, &pos);
-        input_object.render_border(&mut writer, &pos);
+        // input_object.render_value(&mut writer, &pos);
+        // input_object.render_border(&mut writer, &pos);
 
         let c = term.container_ref_mut(&[0, 9]).unwrap();
         c.border = ragout::space_awareness::Border::Uniform('0');
-        c.render_border(&mut writer);
+        c.render(&mut writer);
 
         _ = term.sync_cursor(&mut writer);
 
