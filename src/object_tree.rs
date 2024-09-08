@@ -1,6 +1,5 @@
-use crate::builders::ObjectBuilder;
 use crate::render_pipeline;
-use crate::space_awareness::{between, conflicts, Border, Padding, Point, SpaceAwareness};
+use crate::space::{between, conflicts, Border, Padding, SpaceAwareness};
 use crate::termbuf::winsize;
 
 use std::any::type_name;
@@ -10,12 +9,16 @@ use std::marker::PhantomData;
 
 // TODO: text position, vertical/horizontal center, start or end
 
+// TODO: ctrl + l  = clear and render whole term buffer event
+// TODO: term switch event
+
 #[derive(Debug)]
 pub struct Zero;
 
 #[derive(Debug)]
 pub struct ObjectTree {
     terms: Vec<Term>,
+    active: u8,
 }
 
 #[derive(Debug)]
@@ -27,12 +30,45 @@ pub enum TreeErrors {
     BoundsNotRespected,
 }
 
+// TODO: logging system since terminal logging is broken inside raw mode
+// TODO: change id implementation
+// all ids should be only 1 u8
+// terms have ids between 0 and 9
+// containers have ids between 10 and 99
+// texts have ids between 100 and 255
+// this limits the nukber of possibly coexisting objects but these numbers should be enough
+// as 1 term can host up to 90 (100 - 10) containers and not complain
+// and 1 container can host up to 156 (256 -100) items/texts
+// and there can only be 10 terms in one application at the same time
+// any app that would need more than that is an extreme edge case
+// should this crate eever take off and such an edge case appears, ill think about it then
+
 impl ObjectTree {
     pub fn new() -> Self {
         Self {
             terms: vec![Term::new(0)],
+            active: 0,
         }
     }
+
+    // pub fn from_vec(ids: Vec<&[u8]>) -> Self {
+    //     let mut tree = Self { terms: vec![] };
+    //
+    //     let terms = vec![];
+    //     let children = vec![];
+    //
+    //     ids.into_iter().map(|id| {
+    //         if id.len() == 1 {
+    //             tree.term(id[0]);
+    //         } else if id.len() == 2 {
+    //             tree.term_ref_mut(id[0]).unwrap().container([id[0], id[1]]);
+    //         } else if id.len() == 3 {
+    //             tree.term_ref_mut([id[0], id[1], id[2]]);
+    //         }
+    //     });
+    //
+    //     tree
+    // }
 
     pub fn term(&mut self, id: u8) -> Result<(), TreeErrors> {
         if self.has_term(id) {
@@ -42,6 +78,16 @@ impl ObjectTree {
         self.terms.push(Term::new(id));
 
         Ok(())
+    }
+
+    pub fn make_active(&mut self, id: u8) -> Result<(), TreeErrors> {
+        if self.has_term(id) {
+            self.active = id;
+
+            return Ok(());
+        }
+
+        Err(TreeErrors::BadID)
     }
 
     /// takes no id and automatically assigns an id for the term
@@ -94,7 +140,7 @@ enum SpaceError {
 pub struct Term {
     pub overlay: bool,
     pub id: u8,
-    pub cache: HashMap<&'static str, Vec<u8>>,
+    pub cache: HashMap<&'static str, Vec<Vec<Option<char>>>>,
     pub buf: Vec<Option<char>>,
     pub w: u16,
     pub h: u16,
@@ -105,6 +151,7 @@ pub struct Term {
     pub border: Border,
     pub padding: Padding,
     pub active: Option<[u8; 3]>,
+    pub interactibles: HashMap<&'static [u8; 3], u8>,
 }
 
 impl Default for Term {
@@ -115,6 +162,7 @@ impl Default for Term {
         buf.resize((ws.rows() * ws.cols()) as usize, None);
 
         Term {
+            interactibles: HashMap::new(),
             buf,
             w: ws.cols(),
             h: ws.rows(),
@@ -133,6 +181,11 @@ impl Default for Term {
 }
 
 impl Term {
+    // add a new object to the term's interactibles
+    pub fn push_interactible(&mut self) {}
+    // negate an interactible's interacted field
+    pub fn toggle_interacted(&mut self) {}
+
     pub fn new(id: u8) -> Self {
         let ws = winsize::from_ioctl();
 
@@ -149,10 +202,6 @@ impl Term {
             border: Border::Uniform('*'),
             ..Default::default()
         }
-    }
-
-    pub fn from_builder(ob: &ObjectBuilder) -> Self {
-        ob.term()
     }
 
     // prints the buffer, respecting width and height
@@ -272,6 +321,17 @@ impl Term {
             return Err(TreeErrors::BadID);
         };
 
+        let [cx, cy] = match id[2] % 2 == 0 {
+            true => {
+                let t = self.input_ref(&id).unwrap();
+                [t.ax0 + t.cx, t.ay0 + t.cy]
+            }
+            false => {
+                let t = self.nonedit_ref(&id).unwrap();
+                [t.ax0 + t.cx, t.ay0 + t.cy]
+            }
+        };
+
         self.cx = cx;
         self.cy = cy;
 
@@ -340,6 +400,30 @@ impl Term {
     //     Ok(id)
     // }
 
+    // calculates the absolute origin of a text object
+    fn calc_text_abs_ori(
+        &self,
+        id: &[u8; 2],
+        ori: &[u16; 2],
+        ib: &Border,
+        ip: &Padding,
+    ) -> [u16; 2] {
+        let [ix0, iy0] = ori;
+        let Some(cont) = self.container_ref(&id) else {
+            unreachable!("the container was already validated before getting here")
+        };
+        let [_, cpol, cpot, _, _, cpil, cpit, _] = render_pipeline::spread_padding(&cont.padding);
+        let cb = if let Border::None = cont.border { 0 } else { 1 };
+
+        let [_, ipol, ipot, _, _, ipil, ipit, _] = render_pipeline::spread_padding(&ip);
+        let ib = if let Border::None = ib { 0 } else { 1 };
+
+        [
+            cpol + cb + cpil + cont.x0 + ipol + ib + ipil + ix0 + 1,
+            cpot + cb + cpit + cont.y0 + ipot + ib + ipit + iy0,
+        ]
+    }
+
     pub fn input(
         &mut self,
         id: &[u8],
@@ -359,9 +443,23 @@ impl Term {
             return Err(TreeErrors::BadID);
         }
 
+        let [ax0, ay0] = self.calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding);
+
         let mut cont = self.container_ref_mut(&[id[0], id[1]]).unwrap();
 
-        let input = Text::new([id[0], id[1], id[2]], x0, y0, w, h, &[], border, padding);
+        let input = Text::new(
+            [id[0], id[1], id[2]],
+            x0,
+            y0,
+            ax0,
+            ay0,
+            w,
+            h,
+            &[],
+            border,
+            padding,
+            true,
+        );
 
         if cont.assign_valid_text_area(&input).is_err() {
             return Err(TreeErrors::BoundsNotRespected);
@@ -406,6 +504,7 @@ impl Term {
         value: &[Option<char>],
         border: Border,
         padding: Padding,
+        interactible: bool,
     ) -> Result<(), TreeErrors> {
         if id.len() > 3
             || id[2] % 2 == 0
@@ -425,9 +524,23 @@ impl Term {
             return Err(TreeErrors::BadValue);
         }
 
+        let [ax0, ay0] = self.calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding);
+
         let mut cont = self.container_ref_mut(&[id[0], id[1]]).unwrap();
 
-        let nonedit = Text::new([id[0], id[1], id[2]], x0, y0, w, h, value, border, padding);
+        let nonedit = Text::new(
+            [id[0], id[1], id[2]],
+            x0,
+            y0,
+            ax0,
+            ay0,
+            w,
+            h,
+            value,
+            border,
+            padding,
+            interactible,
+        );
 
         if cont.assign_valid_text_area(&nonedit).is_err() {
             return Err(TreeErrors::BoundsNotRespected);
@@ -460,6 +573,25 @@ impl Term {
     //
     //     Ok(id)
     // }
+
+    pub fn active(&self) -> Result<[u16; 2], TreeErrors> {
+        if self.active.is_none() {
+            return Err(TreeErrors::BadID);
+        }
+
+        let id = self.active.unwrap();
+
+        match id[2] % 2 == 0 {
+            true => {
+                let t = self.input_ref(&id).unwrap();
+                Ok([t.ax0, t.ay0])
+            }
+            false => {
+                let t = self.nonedit_ref(&id).unwrap();
+                Ok([t.ax0, t.ay0])
+            }
+        }
+    }
 
     /// returns an optional immutable reference of the container with the provided id if it exists
     pub fn container_ref(&self, id: &[u8; 2]) -> Option<&Container> {
@@ -685,8 +817,8 @@ impl Container {
         }
     }
 
-    pub fn from_builder(ob: &ObjectBuilder) -> Self {
-        ob.container()
+    pub fn parent(&self) -> u8 {
+        self.id[0]
     }
 
     pub fn permit<P>(&mut self) {
@@ -758,50 +890,23 @@ impl Container {
 #[derive(Debug)]
 pub struct Text {
     pub layer: u8,
-    // editable content or not
-    pub edit: bool,
     pub id: [u8; 3],
+    pub temp: Vec<Option<char>>,
     pub value: Vec<Option<char>>,
+    pub hicu: usize,
     pub w: u16,
     pub h: u16,
     pub cx: u16,
     pub cy: u16,
     pub x0: u16,
     pub y0: u16,
+    pub ax0: u16,
+    pub ay0: u16,
     pub registry: HashSet<&'static str>,
     pub border: Border,
     pub padding: Padding,
-}
-
-impl Default for Text {
-    fn default() -> Self {
-        Text {
-            id: [0, 0, 0],
-            w: 20,
-            h: 3,
-            x0: 5,
-            y0: 3,
-            value: vec![
-                Some('h'),
-                Some('e'),
-                Some('l'),
-                Some('l'),
-                Some('o'),
-                Some(' '),
-                Some('t'),
-                Some('e'),
-                Some('r'),
-                Some('m'),
-            ],
-            cx: 0,
-            cy: 0,
-            registry: HashSet::new(),
-            border: Border::None,
-            padding: Padding::None,
-            edit: false,
-            layer: 0,
-        }
-    }
+    pub interactible: bool,
+    pub interaction: u8,
 }
 
 // Inputs can only have pair IDs
@@ -811,18 +916,27 @@ impl Text {
         id: [u8; 3],
         x0: u16,
         y0: u16,
+        ax0: u16,
+        ay0: u16,
         w: u16,
         h: u16,
         value: &[Option<char>],
         border: Border,
         padding: Padding,
+        interactible: bool,
     ) -> Text {
         Text {
             id,
             w,
             h,
+            temp: vec![],
+            hicu: 0,
             x0,
             y0,
+            ax0,
+            ay0,
+            interactible,
+            interaction: 0,
             border,
             padding,
             value: {
@@ -832,24 +946,30 @@ impl Text {
 
                 v
             },
-            ..Default::default()
+            cx: 0,
+            cy: 0,
+            registry: HashSet::new(),
+            layer: 0,
         }
     }
 
-    pub fn with_layer(id: [u8; 3], layer: u8) -> Self {
-        Text {
-            layer,
-            id,
-            w: 37,
-            h: 5,
-            x0: 5,
-            y0: 2,
-            ..Default::default()
-        }
-    }
+    // pub fn with_layer(id: [u8; 3], layer: u8) -> Self {
+    //     Text {
+    //         layer,
+    //         id,
+    //         w: 37,
+    //         h: 5,
+    //         x0: 5,
+    //         y0: 2,
+    //     }
+    // }
 
-    pub fn from_builder(ob: &ObjectBuilder) -> Self {
-        ob.text()
+    // pub fn from_builder(ob: &ObjectBuilder) -> Self {
+    //     ob.text()
+    // }
+
+    pub fn parent(&self) -> [u8; 2] {
+        [self.id[0], self.id[1]]
     }
 
     pub fn permit<P>(&mut self) {

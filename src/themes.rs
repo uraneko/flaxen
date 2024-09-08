@@ -12,11 +12,9 @@ use std::io::Write;
 // the position of the token in the text
 // or can take individual chars instead of whole tokens
 
-type StyleId = u8;
-
 #[derive(Default)]
 pub struct Style {
-    id: StyleId,
+    id: u8,
     effects: u8,
     text: Option<Color>,
     background: Option<Color>,
@@ -68,7 +66,7 @@ impl Style {
     const CONCEAL: u8 = 64; // 8
     const DBL_UNDERLINE: u8 = 128; // 21
 
-    pub fn new(name: &str) -> Self {
+    pub fn new(/* name: &str */) -> Self {
         Self {
             id: 0,
             background: None,
@@ -77,74 +75,92 @@ impl Style {
         }
     }
 
-    pub fn bold(&mut self) {
+    pub fn bold(mut self) -> Self {
         if (self.effects & Style::BOLD).ne(&0) {
             self.effects &= !Style::BOLD
         } else {
             self.effects |= Style::BOLD
         }
+
+        self
     }
 
-    pub fn underline(&mut self) {
+    pub fn underline(mut self) -> Self {
         if (self.effects & Style::UNDERLINE).ne(&0) {
             self.effects &= !Style::UNDERLINE
         } else {
             self.effects |= Style::UNDERLINE
         }
+
+        self
     }
 
-    pub fn double_underline(&mut self) {
+    pub fn double_underline(mut self) -> Self {
         if (self.effects & Style::DBL_UNDERLINE).ne(&0) {
             self.effects &= !Style::DBL_UNDERLINE
         } else {
             self.effects |= Style::DBL_UNDERLINE
         }
+
+        self
     }
 
-    pub fn italic(&mut self) {
+    pub fn italic(mut self) -> Self {
         if (self.effects & Style::ITALIC).ne(&0) {
             self.effects &= !Style::ITALIC
         } else {
             self.effects |= Style::ITALIC
         }
+
+        self
     }
 
-    pub fn blink(&mut self) {
+    pub fn blink(mut self) -> Self {
         if (self.effects & Style::BLINK).ne(&0) {
             self.effects &= !Style::BLINK
         } else {
             self.effects |= Style::BLINK
         }
+
+        self
     }
 
-    pub fn faint(&mut self) {
+    pub fn faint(mut self) -> Self {
         if (self.effects & Style::FAINT).ne(&0) {
             self.effects &= !Style::FAINT
         } else {
             self.effects |= Style::FAINT
         }
+
+        self
     }
 
-    pub fn conceal(&mut self) {
+    pub fn conceal(mut self) -> Self {
         if (self.effects & Style::CONCEAL).ne(&0) {
             self.effects &= !Style::CONCEAL
         } else {
             self.effects |= Style::CONCEAL
         }
+
+        self
     }
 
-    pub fn reverse(&mut self) {
+    pub fn reverse(mut self) -> Self {
         if (self.effects & Style::REVERSE).ne(&0) {
             self.effects &= !Style::REVERSE
         } else {
             self.effects |= Style::REVERSE
         }
+
+        self
     }
 
-    pub fn reset(&mut self) {
+    pub fn reset(mut self) -> Self {
         self.effects &= Self::RESET;
         self.text = None;
         self.background = None;
+
+        self
     }
 
     pub fn style(&self) -> String {
@@ -198,6 +214,7 @@ impl Style {
         }
     }
 
+    // dumps the current style values into a string
     pub fn calibrate(&self, s: &mut String) {
         *s = self.style();
     }
@@ -214,12 +231,18 @@ impl Style {
         }
     }
 
-    pub fn txt(&mut self, color: &[u8; 3]) {
+    // changes the style text color to the provided rgb value
+    pub fn txt(mut self, color: &[u8; 3]) -> Self {
         self.text = Some(Color::new(color[0], color[1], color[2]));
+
+        self
     }
 
-    pub fn bkg(&mut self, color: &[u8; 3]) {
+    // changes the style background color to the provided rgb value
+    pub fn bkg(mut self, color: &[u8; 3]) -> Self {
         self.background = Some(Color::new(color[0], color[1], color[2]));
+
+        self
     }
 }
 
@@ -316,3 +339,10 @@ pub trait Theme {
 // border styles and value styles
 // for a container there is only border
 // for a text there is both border and value
+//
+// NOTE: need a way in which a theme is applied to a whole Object
+// and if a part needs to be custom styled we write a custom style and only that part gets custom
+// styled
+// NOTE: i still cant figure out how to pull out an atomically customizable theme
+// so for now ill make the input command value custom and everything else gets to be under one
+// theme

@@ -4,7 +4,17 @@ use std::io::{StdoutLock, Write};
 // inner logic of the input type of text objects
 impl Text {
     // submit user input to the program
-    pub fn submit(&mut self) {}
+    pub fn submit(&mut self) -> Vec<Option<char>> {
+        self.cx = 0;
+        self.cy = 0;
+
+        let v = self.value.clone();
+        for val in &mut self.value {
+            *val = None;
+        }
+
+        v
+    }
 
     pub fn left(&mut self) {
         if self.cx == 0 && self.cy == 0 {
@@ -50,7 +60,7 @@ impl Text {
     pub fn home(&mut self) {
         self.cx = 0;
 
-        self.border = crate::space_awareness::Border::Uniform('!');
+        self.border = crate::space::Border::Uniform('!');
     }
 
     pub fn homev(&mut self) {
@@ -66,11 +76,11 @@ impl Text {
     pub fn end(&mut self) {
         self.cx = self.w - 1;
 
-        self.border = crate::space_awareness::Border::Uniform('+');
+        self.border = crate::space::Border::Uniform('+');
     }
 
     // put char if the input cursor points to non-empty (Some(c)) value in the value vec
-    pub fn put_char(&mut self, c: char, writer: &mut StdoutLock) {
+    pub fn put_char(&mut self, c: char) {
         self.value
             .insert((self.cx + self.cy * self.w) as usize, Some(c));
         self.value.remove(self.value.len() - 1);

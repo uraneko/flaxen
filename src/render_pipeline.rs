@@ -1,5 +1,5 @@
 use crate::object_tree::*;
-use crate::space_awareness::{Border, Padding};
+use crate::space::{Border, Padding};
 use crate::themes::{Style, Theme};
 
 use std::collections::HashMap;
@@ -27,6 +27,38 @@ use std::io::{StdoutLock, Write};
 // NOTE: need a way to theme an object character by character
 
 impl Term {
+    pub fn render_interacted(&self, writer: &mut StdoutLock) {
+        self.interactibles
+            .iter()
+            .filter(|(_, interacted)| **interacted != 0)
+            .for_each(|(id, interacted)| match id.len() {
+                3 => {
+                    let t = match id[2] % 2 == 0 {
+                        true => self.input_ref(&[id[0], id[1], id[2]]).unwrap(),
+                        false => self.nonedit_ref(&[id[0], id[1], id[2]]).unwrap(),
+                    };
+
+                    match interacted {
+                        1 => t.render_value(writer),
+                        2 => t.render_border(writer),
+                        3 => t.render(writer),
+                        _ => unreachable!(""),
+                    }
+                }
+                2 => {
+                    let c = self.container_ref(&[id[0], id[1]]).unwrap();
+
+                    match interacted {
+                        1 => c.render_value(writer),
+                        2 => c.render_border(writer),
+                        3 => c.render(writer),
+                        _ => unreachable!(""),
+                    }
+                }
+                _ => unreachable!(),
+            });
+    }
+
     fn prepare(&self) -> (Vec<Option<char>>) {
         let mut lines: Vec<Option<char>> = vec![];
         lines.resize((self.w * self.h) as usize, None);
@@ -143,7 +175,7 @@ impl Container {
                 self.y0 + pot + cb + pit + t.y0 + tpot + tb + tpit,
             ];
 
-            t.render_value(writer, &ori);
+            t.render_value(writer);
         });
     }
 
@@ -408,17 +440,17 @@ impl Container {
 
 impl Text {
     // renders both the text border and value
-    pub fn render(&self, writer: &mut StdoutLock, origin: &[u16; 2]) {
-        self.render_border(writer, origin);
-        self.render_value(writer, origin);
+    pub fn render(&self, writer: &mut StdoutLock) {
+        self.render_border(writer);
+        self.render_value(writer);
     }
 
     // renders only the text border
-    pub fn render_border(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
-        let [xb, yb] = [ori[0] - 2, ori[1] - 2];
+    pub fn render_border(&self, writer: &mut StdoutLock) {
+        let [por, pol, pot, pob, pir, pil, pit, pib] = spread_padding(&self.padding);
+        let [xb, yb] = [self.ax0 - pil - 1, self.ay0 - pit - 1];
         let mut s = format!("\x1b[{};{}f", yb, xb);
 
-        let [_, _, _, _, pir, pil, pit, pib] = spread_padding(&self.padding);
         let wb = pil + 1 + self.w + 1 + pir;
         let hb = pit + 1 + self.h + 1 + pib;
 
@@ -449,15 +481,15 @@ impl Text {
     }
 
     // renders only the text value
-    pub fn render_value(&self, writer: &mut StdoutLock, ori: &[u16; 2]) {
-        let h0 = ori[1];
+    pub fn render_value(&self, writer: &mut StdoutLock) {
+        let h0 = self.ay0;
 
         let del = |s: &mut String, y: u16| {
-            *s = format!("\x1b[{};{}f\x1b[{}X", y, ori[0], self.w);
+            *s = format!("\x1b[{};{}f\x1b[{}X", y, self.ax0, self.w);
         };
 
         let put = |s: &mut String, y: u16| {
-            *s = format!("\x1b[{};{}f", h0 + y, ori[0]);
+            *s = format!("\x1b[{};{}f", h0 + y, self.ax0);
             for idx in 0..self.w {
                 let c = self.value[(idx + y * self.w) as usize];
                 if c.is_some() {

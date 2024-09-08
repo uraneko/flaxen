@@ -1,17 +1,13 @@
 #![allow(warnings)]
-pub mod builders;
-pub mod builtin_events;
-pub mod commissioner;
-pub mod container;
+pub mod cache;
 pub mod events;
-pub mod history;
 pub mod input;
 pub mod kbd_decode;
 pub mod mouse_input;
 pub mod presets;
 pub mod raw_mode;
 pub mod render_pipeline;
-pub mod space_awareness;
+pub mod space;
 pub mod termbuf;
 pub mod themes;
 
@@ -22,6 +18,8 @@ pub use termbuf::*;
 use std::ops::Range;
 
 pub mod object_tree;
+
+// TODO: object tree from vector of ids
 
 // TODO:
 // 1 => raw mode + alternate screen + winsize + term buffer of NUL... done
@@ -34,10 +32,8 @@ pub mod object_tree;
 // 5c => popup container logic
 // 6 => panes support
 
-use commissioner::Commissioner;
-
 // TODO:
-// 1 do space_awareness
+// 1 do space
 // 2 add borders for the objects
 // 3 do the builtin events;
 //     input inner logic + output changes events + windowresize event + panes logic

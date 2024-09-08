@@ -1,9 +1,7 @@
-use ragout::commissioner::*;
-use ragout::container::*;
 use ragout::events::*;
 use ragout::object_tree::*;
 use ragout::raw_mode::{cooked_mode, raw_mode};
-use ragout::*;
+use ragout::space::*;
 use ragout::{decode_ki_kai, read_ki, Char, KbdEvent, Modifiers};
 
 use std::io::Write;
@@ -19,17 +17,17 @@ fn main() {
     let mut ot = ObjectTree::new();
     let term = ot.term_ref_mut(0).unwrap();
 
-    term.fire(InitEvent::Container(&[0, 9], 3, 2, 54, 16));
-    term.fire(InitEvent::Input(
+    term.container(&[0, 9], 3, 2, 54, 16);
+    term.input(
         &[0, 9, 2],
         6,  // x0
         0,  // y0
         35, // w
         6,  // h
-            // border *
-            // padding outer: 1 1 1 1
-            // &['h', 'e', 'l', 'l', 'o'],
-    ));
+        Border::None,
+        Padding::None,
+        &['h', 'e', 'l', 'l', 'o'],
+    );
 
     let pos = term.locate_text(&[0, 9, 2]).unwrap();
 
@@ -64,13 +62,13 @@ fn main() {
         let ke = ui.remove(0).unwrap();
 
         let input_object = term.input_ref_mut(&[0, 9, 2]).unwrap();
-        _ = input_object.fire((&ke, &mut writer));
+        _ = input_object.fire((&ke, &vec![]));
 
         // input_object.render_value(&mut writer, &pos);
         // input_object.render_border(&mut writer, &pos);
 
         let c = term.container_ref_mut(&[0, 9]).unwrap();
-        c.border = ragout::space_awareness::Border::Uniform('0');
+        c.border = ragout::space::Border::Uniform('0');
         c.render(&mut writer);
 
         _ = term.sync_cursor(&mut writer);

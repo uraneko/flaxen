@@ -12,6 +12,10 @@ exclude = ["resources/logs/", "Cargo.lock"]
 documentation = "https://docs.rs/ragout"
 
 [[example]]
+name = "themes"
+path = "examples/themes.rs"
+
+[[example]]
 name = "e3"
 path = "examples/events3.rs"
 
@@ -38,6 +42,10 @@ path = "examples/events2.rs"
 [[example]]
 name = "impl"
 path = "examples/impl.rs"
+
+[[example]]
+name = "cache"
+path = "examples/cache.rs"
 
 [[example]]
 name = "bufimg"

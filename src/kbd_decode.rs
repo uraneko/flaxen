@@ -3,7 +3,7 @@ use std::io::Error as er;
 use std::io::Read;
 use std::io::Write;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Char {
     CC(CC),
     Char(char),
@@ -122,7 +122,7 @@ impl Char {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum CC {
     // ascii
     BS = 127,
@@ -154,7 +154,7 @@ pub enum CC {
     F12,
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq)]
 pub struct Modifiers(pub u8);
 
 impl std::fmt::Display for Modifiers {

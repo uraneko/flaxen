@@ -1,16 +1,13 @@
-use ragout::commissioner::*;
-use ragout::container::*;
 use ragout::events::*;
 use ragout::object_tree::*;
-use ragout::*;
 
 fn main() {
     let mut ot = ObjectTree::new();
 
     let mut term = ot.term_ref_mut(0).unwrap();
 
-    term.fire(InitEvent::Container(&[0, 9], 3, 2, 54, 16));
-    term.fire(InitEvent::Input(
+    term.container(&[0, 9], 3, 2, 54, 16);
+    term.input(
         &[0, 9, 2],
         6,  // x0
         0,  // y0
@@ -19,9 +16,9 @@ fn main() {
             // border *
             // padding outer: 1 1 1 1
             // &['h', 'e', 'l', 'l', 'o'],
-    ));
+    );
 
-    term.fire(InitEvent::NonEdit(
+    term.nonedit(
         &[0, 9, 1],
         27, // x0
         7,  // y0
@@ -40,7 +37,7 @@ fn main() {
             Some('d'),
             Some('!'),
         ],
-    ));
+    );
     // TODO: if a value is given for text at initialization, it needs to be checked for bounds
     // validity,
 
@@ -55,8 +52,8 @@ fn main() {
 
     // println!("{:#?}", ot);
 
-    term.fire(InitEvent::Container(&[0, 2], 86, 19, 53, 14));
-    term.fire(InitEvent::NonEdit(
+    term.container(&[0, 2], 86, 19, 53, 14);
+    term.nonedit(
         &[0, 2, 5],
         6,  // x0
         1,  // y0
@@ -65,9 +62,9 @@ fn main() {
         // border *
         // padding outer: 1 1 1 1
         &[Some('h'), Some('e'), Some('l'), Some('l'), Some('o')],
-    ));
+    );
 
-    term.fire(InitEvent::NonEdit(
+    term.nonedit(
         &[0, 2, 1],
         27, // x0
         6,  // y0
@@ -86,7 +83,7 @@ fn main() {
             Some('d'),
             Some('!'),
         ],
-    ));
+    );
 
     let mut writer = std::io::stdout().lock();
 

@@ -2,7 +2,7 @@
 use ragout::events::{Events, EventsConclusion, EventsTrigger};
 use ragout::kbd_decode::{Char, KbdEvent, Modifiers, CC};
 use ragout::object_tree::{Term, Text};
-use ragout::space_awareness::SpaceAwareness;
+use ragout::space::SpaceAwareness;
 
 struct WindowResized(u16, u16);
 

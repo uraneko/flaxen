@@ -1,7 +1,7 @@
 use crate::events::{Events, EventsConclusion, EventsTrigger};
 use crate::kbd_decode::{Char, KbdEvent, Modifiers, CC};
 use crate::object_tree::{Term, Text};
-use crate::space_awareness::SpaceAwareness;
+use crate::space::SpaceAwareness;
 
 struct WindowResized(u16, u16);
 
@@ -33,24 +33,24 @@ pub struct InnerLogic;
 // Permit
 pub struct BasicInput;
 
-impl EventsConclusion<InnerLogic> for Option<String> {}
-impl EventsTrigger<InnerLogic> for (&KbdEvent, &mut StdoutLock<'static>) {}
+impl EventsConclusion<InnerLogic> for Vec<Option<char>> {}
+impl EventsTrigger<InnerLogic> for (&KbdEvent, &[Vec<Option<char>>]) {}
 
 use std::io::StdoutLock;
 
-impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a mut StdoutLock<'static>)> for Text {
-    fn fire(&mut self, values: (&'a KbdEvent, &'a mut StdoutLock<'static>)) -> Option<String> {
-        let (input, writer) = values;
+impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a [Vec<Option<char>>])> for Text {
+    fn fire(&mut self, values: (&'a KbdEvent, &'a [Vec<Option<char>>])) -> Vec<Option<char>> {
+        let (input, cache) = values;
         // input submission
         match (&input.char, &input.modifiers) {
             // enter hit, submit input from the active input text item
-            (Char::CC(CC::CR), Modifiers(0)) => {}
+            (Char::CC(CC::CR), Modifiers(0)) => return self.submit(),
             // just a backspace, erases the char behind the cursor
             (Char::CC(CC::BS), Modifiers(0)) => self.delete(),
             // a normal char input with no modifiers
             // put char behind the cursor
             (Char::Char(c), Modifiers(0)) => {
-                self.put_char(*c, writer);
+                self.put_char(*c);
             }
             // arrow up, move up in input
             (Char::CC(CC::Up), Modifiers(0)) => self.up(),
@@ -70,7 +70,33 @@ impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a mut StdoutLock<'stati
             // go to end
             (Char::CC(CC::End), Modifiers(4)) => self.endv(),
 
-            _ => return None,
+            (Char::CC(CC::Up), Modifiers(4)) => self.history_up(cache),
+
+            (Char::CC(CC::Down), Modifiers(4)) => self.history_down(cache),
+
+            _ => return vec![],
+        }
+
+        vec![]
+    }
+}
+
+pub struct InteractiveSwitch;
+pub struct Interactive;
+
+impl EventsTrigger<Interactive> for &KbdEvent {}
+impl EventsConclusion<Interactive> for Option<[u8; 3]> {}
+
+// TODO: soemthing like interactives.next()
+
+impl<'a> Events<InteractiveSwitch, Interactive, &'a KbdEvent> for Term {
+    fn fire(&mut self, input: &'a KbdEvent) -> Option<[u8; 3]> {
+        if input.char == Char::CC(CC::TAB) {
+            if input.modifiers == Modifiers(0) {
+                return Some([0, 1, 0]);
+            } else if input.modifiers == Modifiers(8) {
+                return Some([0, 0, 0]);
+            }
         }
 
         None
