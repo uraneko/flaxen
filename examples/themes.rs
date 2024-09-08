@@ -65,11 +65,11 @@ fn main() {
         },
     );
 
-    let style1 = themes::Style::new().bold().underline().txt(&[123, 146, 34]);
+    let style1 = themes::Style::new().bold().underline().txt(&[180, 59, 90]);
 
     let mut writer = std::io::stdout().lock();
     let mut reader = std::io::stdin().lock();
-    _ = writer.write(style1.style().as_bytes());
+    // _ = writer.write(style1.style().as_bytes());
 
     let ts = raw_mode::raw_mode();
     _ = writer.write(b"\x1b[?1049h\x1b[0;0f");
@@ -106,12 +106,16 @@ fn main() {
         if let Some(id) = term.active {
             let cache = term.cache.get("input").unwrap_or(&vec![]).clone();
             let input_object = term.input_ref_mut(&id).unwrap();
+            input_object.vstyle(&style1);
             let res = input_object.fire((&ke, &cache));
-            input_object.render(&mut writer);
+            // input_object.render_value(&mut writer);
+            term.live_render(&mut writer);
             if !res.is_empty() {
                 term.cache_input(res);
             }
         }
+
+        // term.reset_changed();
 
         _ = term.sync_cursor(&mut writer);
         _ = writer.flush();

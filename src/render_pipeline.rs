@@ -27,36 +27,15 @@ use std::io::{StdoutLock, Write};
 // NOTE: need a way to theme an object character by character
 
 impl Term {
-    pub fn render_interacted(&self, writer: &mut StdoutLock) {
-        self.interactibles
-            .iter()
-            .filter(|(_, interacted)| **interacted != 0)
-            .for_each(|(id, interacted)| match id.len() {
-                3 => {
-                    let t = match id[2] % 2 == 0 {
-                        true => self.input_ref(&[id[0], id[1], id[2]]).unwrap(),
-                        false => self.nonedit_ref(&[id[0], id[1], id[2]]).unwrap(),
-                    };
-
-                    match interacted {
-                        1 => t.render_value(writer),
-                        2 => t.render_border(writer),
-                        3 => t.render(writer),
-                        _ => unreachable!(""),
-                    }
-                }
-                2 => {
-                    let c = self.container_ref(&[id[0], id[1]]).unwrap();
-
-                    match interacted {
-                        1 => c.render_value(writer),
-                        2 => c.render_border(writer),
-                        3 => c.render(writer),
-                        _ => unreachable!(""),
-                    }
-                }
-                _ => unreachable!(),
-            });
+    /// renders only the text objects that have seen some value/border change since the last event
+    /// loop iteration, either through user interaction or some background events being triggered
+    pub fn live_render(&self, writer: &mut StdoutLock) {
+        self.changed().iter().for_each(|t| match t.change {
+            1 => t.render_value(writer),
+            2 => t.render_border(writer),
+            3 => t.render(writer),
+            _ => unreachable!(""),
+        });
     }
 
     fn prepare(&self) -> (Vec<Option<char>>) {
@@ -101,6 +80,9 @@ impl Term {
     /// assumes that Term::clear() has been used before hand to prepare the terminal display for the
     /// rendering
     // this method doesn't work at all
+    // when this is used themes are not applied, contrary to individual object render methods
+    // need a way to map whatever style to some range of positions in the term buffer
+    // that way, atomic style implementation becomes easy to call from anywhere
     pub fn render(&mut self, writer: &mut StdoutLock) {
         let cells = self.prepare();
 
@@ -183,7 +165,7 @@ impl Container {
     pub fn render_border(&self, writer: &mut StdoutLock) {
         let [_, pol, pot, _, pir, pil, pit, pib] = spread_padding(&self.padding);
         let [xb, yb] = [self.x0 + pol + 1, self.y0 + pot];
-        let mut s = format!("\x1b[{};{}f", yb, xb);
+        let mut s = format!("{}\x1b[{};{}f", &self.bstyle, yb, xb);
 
         let wb = pil + 1 + self.w + 1 + pir;
         let hb = pit + 1 + self.h + 1 + pib;
@@ -209,6 +191,8 @@ impl Container {
             for _ in 0..wb {
                 s.push(c)
             }
+
+            s.push_str("\x1b[0m");
 
             writer.write(s.as_bytes());
         }
@@ -449,7 +433,7 @@ impl Text {
     pub fn render_border(&self, writer: &mut StdoutLock) {
         let [por, pol, pot, pob, pir, pil, pit, pib] = spread_padding(&self.padding);
         let [xb, yb] = [self.ax0 - pil - 1, self.ay0 - pit - 1];
-        let mut s = format!("\x1b[{};{}f", yb, xb);
+        let mut s = format!("{}\x1b[{};{}f", &self.bstyle, yb, xb);
 
         let wb = pil + 1 + self.w + 1 + pir;
         let hb = pit + 1 + self.h + 1 + pib;
@@ -476,6 +460,8 @@ impl Text {
                 s.push(c)
             }
 
+            s.push_str("\x1b[0m");
+
             writer.write(s.as_bytes());
         }
     }
@@ -485,11 +471,11 @@ impl Text {
         let h0 = self.ay0;
 
         let del = |s: &mut String, y: u16| {
-            *s = format!("\x1b[{};{}f\x1b[{}X", y, self.ax0, self.w);
+            *s += &format!("\x1b[{};{}f\x1b[{}X", y, self.ax0, self.w);
         };
 
         let put = |s: &mut String, y: u16| {
-            *s = format!("\x1b[{};{}f", h0 + y, self.ax0);
+            *s += &format!("\x1b[{};{}f", h0 + y, self.ax0);
             for idx in 0..self.w {
                 let c = self.value[(idx + y * self.w) as usize];
                 if c.is_some() {
@@ -500,15 +486,17 @@ impl Text {
             }
         };
 
-        let mut s = String::new();
+        let mut s = format!("{}", &self.vstyle);
 
         // iterate through lines
         for idx in 0..self.h {
             del(&mut s, h0 + idx);
-            writer.write(s.as_bytes());
             put(&mut s, idx);
-            writer.write(s.as_bytes());
         }
+
+        s += "\x1b[0m";
+
+        writer.write(s.as_bytes());
     }
 
     pub fn decorate(&self) -> [u16; 2] {

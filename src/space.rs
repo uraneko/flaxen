@@ -1,4 +1,4 @@
-use crate::object_tree::{Container, ObjectTree, Term, Text, Zero};
+use crate::object_tree::{Container, ObjectTree, Term, Text};
 
 use std::collections::HashMap;
 use std::{

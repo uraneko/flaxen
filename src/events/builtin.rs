@@ -77,6 +77,8 @@ impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a [Vec<Option<char>>])>
             _ => return vec![],
         }
 
+        self.change = 1;
+
         vec![]
     }
 }

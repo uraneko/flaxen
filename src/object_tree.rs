@@ -1,6 +1,7 @@
 use crate::render_pipeline;
 use crate::space::{between, conflicts, Border, Padding, SpaceAwareness};
 use crate::termbuf::winsize;
+use crate::themes::Style;
 
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
@@ -11,9 +12,6 @@ use std::marker::PhantomData;
 
 // TODO: ctrl + l  = clear and render whole term buffer event
 // TODO: term switch event
-
-#[derive(Debug)]
-pub struct Zero;
 
 #[derive(Debug)]
 pub struct ObjectTree {
@@ -136,12 +134,11 @@ enum SpaceError {
     E1,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Term {
     pub overlay: bool,
     pub id: u8,
     pub cache: HashMap<&'static str, Vec<Vec<Option<char>>>>,
-    pub buf: Vec<Option<char>>,
     pub w: u16,
     pub h: u16,
     pub cx: u16,
@@ -151,68 +148,37 @@ pub struct Term {
     pub border: Border,
     pub padding: Padding,
     pub active: Option<[u8; 3]>,
-    pub interactibles: HashMap<&'static [u8; 3], u8>,
-}
-
-impl Default for Term {
-    fn default() -> Term {
-        let ws = winsize::from_ioctl();
-
-        let mut buf = vec![];
-        buf.resize((ws.rows() * ws.cols()) as usize, None);
-
-        Term {
-            interactibles: HashMap::new(),
-            buf,
-            w: ws.cols(),
-            h: ws.rows(),
-            registry: HashSet::from(["Core"]),
-            active: None,
-            padding: Padding::None,
-            border: Border::None,
-            overlay: false,
-            id: 0,
-            cache: HashMap::new(),
-            cx: 0,
-            cy: 0,
-            containers: vec![],
-        }
-    }
 }
 
 impl Term {
-    // add a new object to the term's interactibles
-    pub fn push_interactible(&mut self) {}
-    // negate an interactible's interacted field
-    pub fn toggle_interacted(&mut self) {}
-
     pub fn new(id: u8) -> Self {
         let ws = winsize::from_ioctl();
 
-        let mut buf = vec![];
-        buf.resize((ws.rows() * ws.cols()) as usize, None);
-
         Term {
             id,
-            buf,
             w: ws.cols(),
             h: ws.rows(),
             registry: HashSet::from(["Core"]),
             padding: Padding::None,
             border: Border::Uniform('*'),
-            ..Default::default()
+            overlay: false,
+            cache: HashMap::new(),
+            cx: 0,
+            cy: 0,
+            containers: vec![],
+            active: None,
         }
     }
 
     // prints the buffer, respecting width and height
-    pub fn print_buf(&self) {
-        for idxr in 0..self.buf.len() / self.w as usize {
-            print!("\r\n");
-            for idxc in 0..self.buf.len() / self.h as usize {
-                print!("{:?}", self.buf[idxr]);
-            }
-        }
-    }
+    // pub fn print_buf(&self) {
+    //     for idxr in 0..self.buf.len() / self.w as usize {
+    //         print!("\r\n");
+    //         for idxc in 0..self.buf.len() / self.h as usize {
+    //             print!("{:?}", self.buf[idxr]);
+    //         }
+    //     }
+    // }
 
     /// adds a Permit type to the term's registry
     pub fn permit<P>(&mut self) {
@@ -343,6 +309,34 @@ impl Term {
 }
 
 impl Term {
+    // returns immutable references to all text objects that have had interactions since the last event loop
+    pub fn changed(&self) -> Vec<&Text> {
+        self.containers
+            .iter()
+            .map(|c| c.items.iter().filter(|t| t.change != 0))
+            .flatten()
+            .collect()
+    }
+
+    // returns mutable references to all text objects that have had interactions since the last event loop
+    pub fn changed_mut(&mut self) -> Vec<&mut Text> {
+        self.containers
+            .iter_mut()
+            .map(|c| c.items.iter_mut().filter(|t| t.change != 0))
+            .flatten()
+            .collect()
+    }
+
+    // resets all interactible objects' interactions value to 0
+    // call this after every iteration of a program's event loop
+    pub fn reset_changed(&mut self) {
+        self.changed_mut().iter_mut().for_each(|t| {
+            t.change = 0;
+        });
+    }
+}
+
+impl Term {
     pub fn container(
         &mut self,
         id: &[u8],
@@ -458,7 +452,6 @@ impl Term {
             &[],
             border,
             padding,
-            true,
         );
 
         if cont.assign_valid_text_area(&input).is_err() {
@@ -504,7 +497,6 @@ impl Term {
         value: &[Option<char>],
         border: Border,
         padding: Padding,
-        interactible: bool,
     ) -> Result<(), TreeErrors> {
         if id.len() > 3
             || id[2] % 2 == 0
@@ -539,7 +531,6 @@ impl Term {
             value,
             border,
             padding,
-            interactible,
         );
 
         if cont.assign_valid_text_area(&nonedit).is_err() {
@@ -737,7 +728,7 @@ impl Term {
 
 // TODO: need a way
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Container {
     pub overlay: bool,
     pub layer: u8,
@@ -750,6 +741,7 @@ pub struct Container {
     pub registry: HashSet<&'static str>,
     pub border: Border,
     pub padding: Padding,
+    pub bstyle: String,
 }
 
 impl std::fmt::Display for Container {
@@ -765,24 +757,6 @@ impl std::fmt::Display for Container {
 // he is the only one with access to the Term father
 // TODO: commissioner needs to handle the space, id requests allocations
 
-impl Default for Container {
-    fn default() -> Self {
-        Self {
-            id: [0, 0],
-            layer: 0,
-            w: 37,
-            h: 5,
-            overlay: false,
-            items: vec![],
-            x0: 5,
-            y0: 2,
-            padding: Padding::None,
-            border: Border::None,
-            registry: HashSet::new(),
-        }
-    }
-}
-
 impl Container {
     pub fn new(
         id: [u8; 2],
@@ -796,12 +770,16 @@ impl Container {
         Container {
             id,
             w,
+            overlay: false,
+            items: vec![],
             h,
             x0,
+            layer: 0,
+            registry: HashSet::new(),
             y0,
             border,
             padding,
-            ..Default::default()
+            bstyle: "".to_string(),
         }
     }
 
@@ -815,6 +793,10 @@ impl Container {
             y0: 2,
             ..Default::default()
         }
+    }
+
+    pub fn bstyle(&mut self, style: &Style) {
+        self.bstyle = style.style();
     }
 
     pub fn parent(&self) -> u8 {
@@ -884,10 +866,8 @@ impl Container {
     }
 }
 
-// TODO: make the current Objects new implementations into Default impls
-// then impl new with arguments
-
-#[derive(Debug)]
+// TODO: add proper lifetime
+#[derive(Debug, Default)]
 pub struct Text {
     pub layer: u8,
     pub id: [u8; 3],
@@ -905,8 +885,9 @@ pub struct Text {
     pub registry: HashSet<&'static str>,
     pub border: Border,
     pub padding: Padding,
-    pub interactible: bool,
-    pub interaction: u8,
+    pub change: u8,
+    pub bstyle: String,
+    pub vstyle: String,
 }
 
 // Inputs can only have pair IDs
@@ -923,7 +904,6 @@ impl Text {
         value: &[Option<char>],
         border: Border,
         padding: Padding,
-        interactible: bool,
     ) -> Text {
         Text {
             id,
@@ -935,8 +915,7 @@ impl Text {
             y0,
             ax0,
             ay0,
-            interactible,
-            interaction: 0,
+            change: 0,
             border,
             padding,
             value: {
@@ -950,7 +929,17 @@ impl Text {
             cy: 0,
             registry: HashSet::new(),
             layer: 0,
+            vstyle: "".to_string(),
+            bstyle: "".to_string(),
         }
+    }
+
+    pub fn vstyle(&mut self, style: &Style) {
+        self.vstyle = style.style();
+    }
+
+    pub fn bstyle(&mut self, style: &Style) {
+        self.bstyle = style.style();
     }
 
     // pub fn with_layer(id: [u8; 3], layer: u8) -> Self {

@@ -12,15 +12,14 @@ use std::io::Write;
 // the position of the token in the text
 // or can take individual chars instead of whole tokens
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct Style {
-    id: u8,
     effects: u8,
     text: Option<Color>,
     background: Option<Color>,
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct Color {
     r: u8,
     g: u8,
@@ -68,7 +67,6 @@ impl Style {
 
     pub fn new(/* name: &str */) -> Self {
         Self {
-            id: 0,
             background: None,
             text: None,
             effects: 0,

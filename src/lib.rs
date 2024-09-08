@@ -1,9 +1,9 @@
 #![allow(warnings)]
 pub mod cache;
 pub mod events;
-pub mod input;
 pub mod kbd_decode;
 pub mod mouse_input;
+pub mod object_tree;
 pub mod presets;
 pub mod raw_mode;
 pub mod render_pipeline;
@@ -12,12 +12,8 @@ pub mod termbuf;
 pub mod themes;
 
 pub use kbd_decode::*;
-pub(crate) use raw_mode::*;
+pub use raw_mode::*;
 pub use termbuf::*;
-
-use std::ops::Range;
-
-pub mod object_tree;
 
 // TODO: object tree from vector of ids
 

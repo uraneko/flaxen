@@ -4,6 +4,7 @@
 use std::collections::VecDeque;
 
 pub mod builtin;
+pub mod input;
 
 #[cfg(test)]
 mod tests {
