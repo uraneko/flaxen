@@ -67,7 +67,7 @@ impl Term {
             .ok();
 
         let mut cache = String::new();
-        let mut f = f.unwrap();
+        let mut f = f.unwrap_or(return None);
 
         f.read_to_string(&mut cache).unwrap();
 

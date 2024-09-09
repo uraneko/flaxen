@@ -102,23 +102,21 @@ fn main() {
 
         term.fire((&ke, &mut writer, &ts));
 
-        if let Some(id) = term.fire(&ke) {
-            _ = term.make_active(id, &mut writer);
-        }
+        term.fire((&ke, &mut writer));
 
         if let Some(id) = term.active {
-            let input_object = term.input_ref_mut(&id).unwrap();
-            let key = input_object.name.clone();
+            let inobj = term.input_ref_mut(&id).unwrap();
+            let key = inobj.name.clone();
             if load {
                 term.load_input(&key);
                 load = false;
             }
             let cache = term.cache.get(&key).unwrap_or(&vec![]).clone();
             // print!("\r\n\n\n\n\n\n{:?}", term.cache);
-            let input_object = term.input_ref_mut(&id).unwrap();
-            input_object.vstyle(&style1);
-            let res = input_object.fire((&ke, &cache));
-            // input_object.render_value(&mut writer);
+            let inobj = term.input_ref_mut(&id).unwrap();
+            inobj.vstyle(&style1);
+            let res = inobj.fire((&ke, &cache));
+            // inobj.render_value(&mut writer);
             term.live_render(&mut writer);
             if !res.is_empty() {
                 term.cache_input(&key, res);

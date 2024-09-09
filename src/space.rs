@@ -90,7 +90,8 @@ impl Term {
 }
 
 impl Container {
-    pub fn rescale(&mut self, wdiff: u16, hdiff: u16) {
+    pub fn rescale(&mut self, wnew: u16, hnew: u16) {
+        let [wdiff, hdiff] = [wnew / self.w, hnew / self.h];
         self.w *= wdiff;
         self.h *= hdiff;
         self.x0 *= wdiff;
@@ -98,12 +99,37 @@ impl Container {
     }
 }
 
+use std::cmp::Ordering;
+
 impl Text {
-    pub fn rescale(&mut self, wdiff: u16, hdiff: u16) {
+    pub fn rescale(&mut self, wnew: u16, hnew: u16) {
+        let [wdiff, hdiff] = [wnew / self.w, hnew / self.h];
         self.w *= wdiff;
         self.h *= hdiff;
         self.x0 *= wdiff;
         self.y0 *= hdiff;
+
+        if self.cx >= self.w {
+            self.cx = self.w - 1
+        }
+        if self.cy >= self.h {
+            self.cy = self.h - 1
+        }
+
+        let diff = self.value.len() as isize - (self.w * self.h) as isize;
+        match diff.cmp(&0) {
+            // unchanged, shouldn't be possible since we had a window resize
+            Ordering::Equal => (),
+            // window size shrank
+            Ordering::Greater => (0..diff).into_iter().for_each(|_| {
+                self.value.remove(self.value.len());
+            }),
+
+            // window size grew
+            Ordering::Less => (0..diff).into_iter().for_each(|_| {
+                self.value.push(None);
+            }),
+        }
     }
 }
 

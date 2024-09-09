@@ -268,6 +268,59 @@ impl Term {
         Ok(())
     }
 
+    // returns immutable references to all text objects that can be interacted with
+    pub fn interactables(&self) -> Vec<&Text> {
+        self.containers
+            .iter()
+            .map(|c| c.items.iter().filter(|t| t.change > 0))
+            .flatten()
+            .collect()
+    }
+
+    pub fn interactable_next(&self) -> Option<[u8; 3]> {
+        if self.active.is_none() {
+            return None;
+        }
+
+        let interactables = self.interactables();
+
+        let pos = interactables
+            .iter()
+            .position(|t| t.id == self.active.unwrap());
+
+        assert!(pos.is_some());
+
+        if pos.unwrap() == interactables.len() - 1 {
+            return Some(interactables[0].id);
+        }
+
+        let pos = pos.unwrap();
+
+        Some(interactables[(pos + 1) as usize].id)
+    }
+
+    pub fn interactable_prev(&self) -> Option<[u8; 3]> {
+        if self.active.is_none() {
+            return None;
+        }
+
+        let interactables = self.interactables();
+
+        let pos = interactables
+            .iter()
+            .position(|t| t.id == self.active.unwrap());
+
+        assert!(pos.is_some());
+
+        if pos.unwrap() == 0 {
+            return Some(interactables[interactables.len() - 1].id);
+        }
+
+        let pos = pos.unwrap();
+
+        Some(interactables[(pos - 1) as usize].id)
+    }
+
     // returns immutable references to all text objects that have had interactions since the last event loop
     pub fn changed(&self) -> Vec<&Text> {
         self.containers
@@ -286,11 +339,11 @@ impl Term {
             .collect()
     }
 
-    // resets all interactible objects' interactions value to 0
+    // resets all interactable objects' interactions value to 0
     // call this after every iteration of a program's event loop
     pub fn reset_changed(&mut self) {
         self.changed_mut().iter_mut().for_each(|t| {
-            t.change = 0;
+            t.change = 1;
         });
     }
 }
@@ -456,7 +509,7 @@ impl Term {
         w: u16,
         h: u16,
         value: &[Option<char>],
-        interactible: bool,
+        interactable: bool,
         border: Border,
         padding: Padding,
     ) -> Result<(), TreeErrors> {
@@ -492,7 +545,7 @@ impl Term {
             w,
             h,
             value,
-            interactible,
+            interactable,
             border,
             padding,
         );
@@ -862,7 +915,7 @@ impl Text {
         w: u16,
         h: u16,
         value: &[Option<char>],
-        interactible: bool,
+        interactable: bool,
         border: Border,
         padding: Padding,
     ) -> Text {
@@ -877,7 +930,7 @@ impl Text {
             y0,
             ax0,
             ay0,
-            change: interactible.then_some(1).unwrap_or(0),
+            change: interactable.then_some(1).unwrap_or(0),
             border,
             padding,
             value: {

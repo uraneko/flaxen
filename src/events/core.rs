@@ -23,15 +23,16 @@ pub struct CoreEvents;
 pub struct TermCentral;
 
 // BUG: this is broken
+// it does nothing
 impl Events<TermCentral, CoreEvents, WindowResized> for Term {
-    fn fire(&mut self, input: WindowResized) {
+    fn fire(&mut self, values: WindowResized) {
         self.containers.iter_mut().for_each(|c| {
             c.items.iter_mut().for_each(|t| {
-                t.rescale(input.0, input.1);
+                t.rescale(values.0, values.1);
             });
-            c.rescale(input.0, input.1);
+            c.rescale(values.0, values.1);
         });
-        self.rescale(input.0, input.1);
+        self.rescale(values.0, values.1);
     }
 }
 
@@ -94,20 +95,29 @@ impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a [Vec<Option<char>>])>
 pub struct InteractiveSwitch;
 pub struct Interactive;
 
-impl EventsTrigger<Interactive> for &KbdEvent {}
-impl EventsConclusion<Interactive> for Option<[u8; 3]> {}
+impl EventsTrigger<Interactive> for (&KbdEvent, &mut StdoutLock<'static>) {}
+impl EventsConclusion<Interactive> for () {}
 
-impl<'a> Events<InteractiveSwitch, Interactive, &'a KbdEvent> for Term {
-    fn fire(&mut self, input: &'a KbdEvent) -> Option<[u8; 3]> {
-        if input.char == Char::CC(CC::TAB) {
+impl<'a> Events<InteractiveSwitch, Interactive, (&'a KbdEvent, &'a mut StdoutLock<'static>)>
+    for Term
+{
+    fn fire(&mut self, inputs: (&'a KbdEvent, &'a mut StdoutLock<'static>)) {
+        let (input, writer) = (inputs.0, inputs.1);
+        let id = if input.char == Char::CC(CC::TAB) {
             if input.modifiers == Modifiers(0) {
-                return Some([0, 1, 0]);
+                self.interactable_next()
             } else if input.modifiers == Modifiers(8) {
-                return Some([0, 0, 0]);
+                self.interactable_prev()
+            } else {
+                return;
             }
-        }
+        } else {
+            return;
+        };
 
-        None
+        if id.is_some() {
+            self.make_active(id.unwrap(), writer);
+        }
     }
 }
 
