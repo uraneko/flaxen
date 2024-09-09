@@ -12,7 +12,7 @@ use std::{
 // top, right, bottom, left
 // a is the new object
 // b is the pre existing one
-pub fn conflicts(
+pub fn area_conflicts(
     ax0: u16,
     ay0: u16,
     aw: u16,
@@ -80,8 +80,8 @@ pub enum Padding {
     },
 }
 
-impl SpaceAwareness for Term {
-    fn rescale(&mut self, wdiff: u16, hdiff: u16) {
+impl Term {
+    pub fn rescale(&mut self, wdiff: u16, hdiff: u16) {
         self.w *= wdiff;
         self.h *= hdiff;
         self.cx *= wdiff;
@@ -89,8 +89,8 @@ impl SpaceAwareness for Term {
     }
 }
 
-impl SpaceAwareness for Container {
-    fn rescale(&mut self, wdiff: u16, hdiff: u16) {
+impl Container {
+    pub fn rescale(&mut self, wdiff: u16, hdiff: u16) {
         self.w *= wdiff;
         self.h *= hdiff;
         self.x0 *= wdiff;
@@ -98,8 +98,8 @@ impl SpaceAwareness for Container {
     }
 }
 
-impl SpaceAwareness for Text {
-    fn rescale(&mut self, wdiff: u16, hdiff: u16) {
+impl Text {
+    pub fn rescale(&mut self, wdiff: u16, hdiff: u16) {
         self.w *= wdiff;
         self.h *= hdiff;
         self.x0 *= wdiff;
@@ -108,7 +108,7 @@ impl SpaceAwareness for Text {
 }
 
 // NOTE: window resizing is polled at every frame redraw
-// logic for when the window is resized,
+// logic for when the window is resized:
 // first the resize is detected by a buffer image events
 // then the buffer tells the commissioner
 // the commissioner in turn tells every component and its items in the buffer

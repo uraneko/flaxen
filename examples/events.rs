@@ -67,8 +67,6 @@ struct A {
     registry: Vec<&'static str>,
 }
 
-// TODO: need a way to constrict A<Anchor> divergence types
-
 fn s<A>() {
     println!("{}", std::any::type_name::<A>());
 }
@@ -89,43 +87,6 @@ impl A {
     fn permit<P>(&mut self) {
         self.registry.push(std::any::type_name::<P>());
     }
-
-    // TODO: should i consume or just take by ref and use temporarily
-    // TODO: do both, make a morph_ref, a morph_val,
-    // NOTE: this does not make a difference in the return type, that will always be an A<Anchor>
-    // owned value,
-    // the reason there is not a morph_mut_ref is the same, because we only return an owned value
-    // fn morph<M>(&self) -> A<M> {
-    //     assert!(self.allowed.contains(&std::any::type_name::<M>()));
-    //     A::<M> {
-    //         phantom: std::marker::PhantomData::<M>,
-    //         id: self.id,
-    //         allowed: self.allowed.clone(),
-    //     }
-    // }
-    //
-    // fn morph_sib<'a, M>(&self, a: &'a mut A<M>) -> &'a mut A<M> {
-    //     assert!(self.allowed.contains(&std::any::type_name::<M>()));
-    //     *a = A::<M> {
-    //         phantom: std::marker::PhantomData::<M>,
-    //         id: self.id,
-    //         allowed: self.allowed.clone(),
-    //     };
-    //
-    //     a
-    // }
-    //
-    // fn allow<Y>(&mut self) {
-    //     self.allowed.push(std::any::type_name::<Y>());
-    // }
-    //
-    // fn converge(&self) -> A<Zero> {
-    //     A::<Zero> {
-    //         phantom: std::marker::PhantomData::<Zero>,
-    //         id: self.id,
-    //         allowed: vec![],
-    //     }
-    // }
 }
 
 trait G<P, T> {

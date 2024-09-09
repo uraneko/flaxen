@@ -1,10 +1,10 @@
-// NOTE: user can create their own type and implement Event for it
-// then they can make event queues for that event implementor
-
 use std::collections::VecDeque;
 
 pub mod builtin;
 pub mod input;
+
+// NOTE: user can create their own type and implement Event for it
+// then they can make event queues for that event implementor
 
 #[cfg(test)]
 mod tests {

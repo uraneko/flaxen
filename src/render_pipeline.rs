@@ -1,39 +1,22 @@
 use crate::object_tree::*;
 use crate::space::{Border, Padding};
-use crate::themes::{Style, Theme};
+use crate::themes::Style;
 
 use std::collections::HashMap;
 use std::io::{StdoutLock, Write};
 
 // NOTE: an object can not be initialized unless
-// its id is valid
+// its id is valid,
 // its dimensions are valid, including overlay
-// NOTE: no need for all this bunanza
-// just make a new field for all objects and populate it with a theme fn
-// then all that remains is when it would be best to call that theme fn
-// impl Theme for Term {
-//     fn theme(&self, map: HashMap<&str, Style>) {}
-// }
-
-// TODO: menu selection events
-// TODO: input objects mevement events
-// TODO: emoji selection event
-
-// NOTE: a theme is just a bunch of insertions of styles at certain points
-
-// term render should call a method of term that goes through
-// all children and grand children styles
-//
-// NOTE: need a way to theme an object character by character
 
 impl Term {
     /// renders only the text objects that have seen some value/border change since the last event
     /// loop iteration, either through user interaction or some background events being triggered
     pub fn live_render(&self, writer: &mut StdoutLock) {
         self.changed().iter().for_each(|t| match t.change {
-            1 => t.render_value(writer),
-            2 => t.render_border(writer),
-            3 => t.render(writer),
+            2 => t.render_value(writer),
+            4 => t.render_border(writer),
+            6 => t.render(writer),
             _ => unreachable!(""),
         });
     }
@@ -77,10 +60,10 @@ impl Term {
     }
 
     /// renders the whole buffer into the terminal
-    /// assumes that Term::clear() has been used before hand to prepare the terminal display for the
+    /// assumes that Term.clear() has been used before hand to prepare the terminal display for the
     /// rendering
-    // this method doesn't work at all
-    // when this is used themes are not applied, contrary to individual object render methods
+    // FIXME: when this is used themes are not applied, contrary to individual object render methods
+    // this is expected behavior, although it's bad
     // need a way to map whatever style to some range of positions in the term buffer
     // that way, atomic style implementation becomes easy to call from anywhere
     pub fn render(&mut self, writer: &mut StdoutLock) {
@@ -419,9 +402,6 @@ impl Container {
     }
 }
 
-// TODO: render_value & render_border & render for text
-// render for container
-
 impl Text {
     // renders both the text border and value
     pub fn render(&self, writer: &mut StdoutLock) {
@@ -677,7 +657,6 @@ impl Text {
                 // skip inner left padding
                 idx += pil;
                 // write values
-                // BUG: doesn't handle multi lined values
                 for vi in 0..self.w as usize {
                     // println!(
                     //     "{}: vi{} + (w{} * (line{} - pot{} - 1 - pit{})) = {}",

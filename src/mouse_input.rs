@@ -2,13 +2,8 @@ use std::io::{StdoutLock, Write};
 
 use crate::kbd_decode::Modifiers;
 
-// NOTE: theming
-// decide which parts of an object will get what style
-// then generate the correct ranges every style should be applied on in the whole term buffer that will be rendered
-// finally insert the correct styles strings in the term buffer at the time of rendering
-
 #[derive(Default, Debug, Clone)]
-pub struct MosEvent {
+pub struct MouseEvent {
     gesture: Gesture,
     modifiers: Modifiers,
     position: [u8; 2],
@@ -43,15 +38,13 @@ pub enum Gesture {
     None,
 }
 
-// TODO: keyboard and mouse input is better sent one key at a time
-
-pub fn decode_mi(bytes: Vec<u8>) -> Vec<MosEvent> {
+pub fn decode_mi(bytes: Vec<u8>) -> Vec<MouseEvent> {
     let mut rem = bytes.len();
     assert_eq!(rem % 6, 0);
 
-    let mut v: Vec<MosEvent> = Vec::new();
+    let mut v: Vec<MouseEvent> = Vec::new();
 
-    let mut me = MosEvent::default();
+    let mut me = MouseEvent::default();
     let mut bytes = bytes.into_iter();
 
     while rem != 0 {
@@ -76,7 +69,7 @@ pub fn decode_mi(bytes: Vec<u8>) -> Vec<MosEvent> {
 // the last 2 bytes are for cursor position (x, y)
 // the cursor position returned always start from 33 so should remove 33 from both x and y
 // to get the correct position
-fn decode_6_bytes(bytes: Vec<u8>, me: &mut MosEvent) {
+fn decode_6_bytes(bytes: Vec<u8>, me: &mut MouseEvent) {
     // assert mouse escape sequence
     assert_eq!(bytes[0], 27);
     assert_eq!(bytes[1], 91);
@@ -120,7 +113,7 @@ fn mouse_modifiers(byte: u8) -> Modifiers {
 }
 
 pub fn enable_mouse_input(writer: &mut StdoutLock) {
-    // TODO: the following line enables the terminal to receive mouse events
+    // NOTE: the following line enables the terminal to receive mouse events
     _ = writer.write(b"\x1b[?1003h");
 }
 

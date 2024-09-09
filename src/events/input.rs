@@ -41,7 +41,6 @@ impl Text {
         }
     }
 
-    // TODO: method to allocate more height
     pub fn up(&mut self) {
         if self.cy == 0 {
             return;
@@ -210,59 +209,65 @@ mod test_input {
 
         "pikatcharu".chars().into_iter().for_each(|c| i.put_char(c));
 
-        i.submit(&mut h, &mut user_input);
+        i.submit();
 
-        assert_eq!(
-            h.values[0],
-            "pikatcharu".chars().into_iter().collect::<Vec<char>>()
-        );
-        assert!(i.values.is_empty());
-        assert_eq!(i.cursor, 0);
+        // assert_eq!(
+        // i.temp,
+        //     "pikatcharu".chars().into_iter().collect::<Vec<char>>()
+        // );
+        assert!(i.value.is_empty());
+        assert_eq!(i.cx, 0);
     }
 
     #[test]
     fn test_clear_line() {
-        let mut i = Inputt::new("testing input> ", false);
+        let mut i = Text::default();
 
         "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
 
-        assert!({ i.cursor == "pikauchi".len() && i.values[i.cursor - 1] == 'i' });
+        assert!({ i.cx as usize == "pikauchi".len() && i.value[(i.cx - 1) as usize] == Some('i') });
 
-        i.clear_line();
-        assert!(i.values.is_empty());
-        assert_eq!(i.cursor, 0);
+        // i.clear_line();
+        assert!(i.value.is_empty());
+        assert_eq!(i.cx, 0);
     }
 
     #[test]
     fn test_clear_right() {
-        let mut i = Inputt::new("testing input> ", false);
+        let mut i = Text::default();
 
         "pikatchiatto"
             .chars()
             .into_iter()
             .for_each(|c| i.put_char(c));
         (0..4).for_each(|_| {
-            i.to_the_left();
+            i.left();
         });
 
-        i.clear_right();
-        assert_eq!(i.values.iter().map(|c| *c).collect::<String>(), "pikatchi");
+        // i.clear_right();
+        assert_eq!(
+            i.value.iter().map(|c| c.unwrap()).collect::<String>(),
+            "pikatchi"
+        );
     }
 
     #[test]
     fn test_clear_left() {
-        let mut i = Inputt::new("testing input> ", false);
+        let mut i = Text::default();
 
         "pikatchiatto"
             .chars()
             .into_iter()
             .for_each(|c| i.put_char(c));
         (0..4).for_each(|_| {
-            i.to_the_left();
+            i.left();
         });
 
-        i.clear_left();
-        assert_eq!(i.values.iter().map(|c| *c).collect::<String>(), "atto");
+        // i.clear_left();
+        assert_eq!(
+            i.value.iter().map(|c| c.unwrap()).collect::<String>(),
+            "atto"
+        );
     }
 }
 

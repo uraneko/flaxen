@@ -104,14 +104,17 @@ fn main() {
         // this should have been: term's active object render
         // FIXME: add term active object and render it in the loop
         if let Some(id) = term.active {
-            let cache = term.cache.get("input").unwrap_or(&vec![]).clone();
+            let input_object = term.input_ref_mut(&id).unwrap();
+            let key = input_object.name.clone();
+            let cache = term.cache.get(&key).unwrap_or(&vec![]).clone();
             let input_object = term.input_ref_mut(&id).unwrap();
             input_object.vstyle(&style1);
             let res = input_object.fire((&ke, &cache));
             // input_object.render_value(&mut writer);
             term.live_render(&mut writer);
             if !res.is_empty() {
-                term.cache_input(res);
+                term.cache_input(&key, res);
+                // print!("\r\n\n\n\n\n\n{:?}", term.cache);
             }
         }
 
@@ -123,16 +126,7 @@ fn main() {
 
     // BUG: moving a Text Object cx and cy before switching to a different Text messes up the
     // rendering positions
-    // weird bug
 
     raw_mode::cooked_mode(&ts);
     _ = writer.write(b"\x1b[?1049l");
 }
-
-// TODO: most of the ways i calculate the text position for use in rendering are broken
-// text objects can just have their absolute positions as fields upon creation
-// TODO: parent method for both container and text objects that  returns the parent of the object
-// it is called on
-// TODO: need a graph/map like data structure that keeps track of what objects i can switch to +
-// another that keeps track of what objects need to be re-rendered from an event loop iteration to
-// anotherm ie. what objects have been interacted with

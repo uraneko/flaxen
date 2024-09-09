@@ -1,7 +1,7 @@
 use crate::object_tree::{Term, Text};
 use std::collections::HashMap;
 
-use std::fs::{create_dir, metadata, File};
+use std::fs::{create_dir, create_dir_all, metadata, File};
 use std::io::Write;
 use std::os::unix::fs::FileExt;
 
@@ -41,25 +41,25 @@ pub fn deserialize_input(value: &str) -> Vec<Option<char>> {
 
 impl Term {
     /// caches input history in the term cache map field
-    pub fn cache_input(&mut self, entry: Vec<Option<char>>) {
-        if !self.cache.contains_key("input") {
-            self.cache.insert("input", vec![entry]);
+    pub fn cache_input(&mut self, key: &str, entry: Vec<Option<char>>) {
+        if !self.cache.contains_key(key) {
+            self.cache.insert(key.to_owned(), vec![entry]);
         } else {
-            self.cache.get_mut("input").unwrap().push(entry);
+            self.cache.get_mut(key).unwrap().push(entry);
         }
     }
 
     /// loads input history from cached file
     /// if parent dir or cahce file do not exist
     /// this returns a None, otherwise it returns a Some()
-    pub fn load_input(&self) -> Option<File> {
-        if !std::path::Path::new("cache").is_dir() {
+    pub fn load_input(&self, key: &str) -> Option<File> {
+        if !std::path::Path::new("cache/input").is_dir() {
             return None;
         }
 
         std::fs::OpenOptions::new()
             .write(true)
-            .open("cache/input.json")
+            .open(format!("cache/input/{}.json", key))
             .ok()
         // .unwrap_or_else(|_| File::create("cache/input.json").unwrap())
     }
@@ -67,10 +67,10 @@ impl Term {
     /// caches the input history into its corresponding cache file
     /// if file already exists, this method appends to it
     /// else it creates a new file then fills it with the relevant cache contents
-    pub fn save_input(&self, file: Option<File>) {
-        if !std::path::Path::new("cache").is_dir() {
-            create_dir("cache").unwrap();
-            File::create("cache/input.json").unwrap();
+    pub fn save_input(&self, key: &str, file: Option<File>) {
+        if !std::path::Path::new("cache/input").is_dir() {
+            create_dir_all("cache/input").unwrap();
+            File::create(format!("cache/input/{}.json", key)).unwrap();
         }
 
         let mut is_empty = false;
@@ -79,12 +79,12 @@ impl Term {
         } else {
             is_empty = true;
 
-            File::create("cache/input.json").unwrap()
+            File::create(format!("cache/input/{}.json", key)).unwrap()
         };
 
         let cache: Vec<String> = self
             .cache
-            .get("input")
+            .get(key)
             .unwrap()
             .iter()
             .map(|c| serialize_input(c))
@@ -96,12 +96,12 @@ impl Term {
                 s = s.replacen("\\\\", "\\", s.len() - 1);
                 s.remove(0);
 
-                let offset = metadata("cache/input.json").unwrap().len() - 3;
+                let offset = metadata(format!("cache/input/{}.json", key)).unwrap().len() - 3;
 
                 file.write_at(s.as_bytes(), offset).unwrap();
             }
             true => {
-                let mut s = format!("{{\"input\": {:#?}}}", cache);
+                let mut s = format!("{{\"cache\": {:#?}}}", cache);
                 s = s.replacen("\\\\", "\\", s.len() - 1);
 
                 file.write(s.as_bytes());
@@ -115,27 +115,45 @@ impl Term {
 
 impl Text {
     pub fn history_up(&mut self, cache: &[Vec<Option<char>>]) {
-        if self.hicu == 0 {
+        if (self.hicu.is_some() && self.hicu.unwrap() == cache.len() - 1) || cache.is_empty() {
+            print!("\r\n\n\n\n\n\n\n\n\n\n\n1");
             return;
-        }
-
-        if self.temp.is_empty() {
+        } else if self.temp.is_empty() && self.hicu.is_none() {
+            print!("\r\n\n\n\n\n\n\n\n\n\n\n2");
             self.temp = self.value.drain(..).collect();
+            self.hicu = Some(0)
         }
+        print!("\r\n\n\n\n\n\n\n\n\n\n\n0");
 
-        self.value = cache[cache.len() - 1 - self.hicu].clone();
-        self.hicu += 1;
+        self.value = cache[cache.len() - 1 - self.hicu.unwrap()].clone();
+        if self.hicu.unwrap() > 0 {
+            *self.hicu.as_mut().unwrap() += 1;
+        }
+        print!("\r\n\n\n\n\n\n\n{:?}", self.hicu);
     }
 
     pub fn history_down(&mut self, cache: &[Vec<Option<char>>]) {
-        if self.hicu == cache.len() {
+        if cache.is_empty() {
+            print!("\r\n\n\n\n\n\n\n\n\n\n\n1");
             return;
-        } else if self.hicu == cache.len() - 1 {
-            self.value = self.temp.drain(..).collect();
+        } else if self.hicu.is_none() {
+            print!("\r\n\n\n\n\n\n\n\n\n\n\n2");
+            if !self.temp.is_empty() {
+                self.value = self.temp.drain(..).collect();
+            }
+            return;
+        } else if self.hicu.is_some() && self.hicu.unwrap() == 0 {
+            print!("\r\n\n\n\n\n\n\n\n\n\n\n3");
+            self.hicu = None;
         }
 
-        self.value = cache[cache.len() - 1 - self.hicu].clone();
-        self.hicu -= 1;
+        print!("\r\n\n\n\n\n\n\n0");
+        self.value = cache[cache.len() - 1 - self.hicu.unwrap_or(0)].clone();
+        if self.hicu.is_some() {
+            print!("\r\n\n\n\n\n\n\n\n\n\n\n00");
+            *self.hicu.as_mut().unwrap() -= 1;
+        }
+        print!("\r\n\n\n\n\n\n\n{:?}", self.hicu);
     }
 
     // pub fn history_filter<'a>(

@@ -77,7 +77,7 @@ impl<'a> Events<BasicInput, InnerLogic, (&'a KbdEvent, &'a [Vec<Option<char>>])>
             _ => return vec![],
         }
 
-        self.change = 1;
+        self.change = 2;
 
         vec![]
     }
@@ -88,8 +88,6 @@ pub struct Interactive;
 
 impl EventsTrigger<Interactive> for &KbdEvent {}
 impl EventsConclusion<Interactive> for Option<[u8; 3]> {}
-
-// TODO: soemthing like interactives.next()
 
 impl<'a> Events<InteractiveSwitch, Interactive, &'a KbdEvent> for Term {
     fn fire(&mut self, input: &'a KbdEvent) -> Option<[u8; 3]> {

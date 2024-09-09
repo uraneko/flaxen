@@ -1,16 +1,10 @@
-// when a style needs to be applied, it takes the string and mutates it to its values then it gets
-// sent over to the event queue to be applied to text
-
+use std::collections::HashMap;
 use std::io::StdoutLock;
 use std::io::Write;
+use std::ops::Range;
 
-// NOTE: should create a stylegraph that takes styles
-// styles are applied according to stylegraphs
-// stylegraphs define rules for which styles apply to which text
-// the rules are based on text tokens' attributes
-// whether a token includes or excludes (starts, ends or contains) a certain pattern
-// the position of the token in the text
-// or can take individual chars instead of whole tokens
+// when a style needs to be applied, it takes the string and mutates it to its values then it gets
+// sent over to the event queue to be applied to text
 
 #[derive(Debug, Default)]
 pub struct Style {
@@ -266,81 +260,53 @@ mod tests {
 
 struct Token {}
 
-use std::collections::HashMap;
-use std::ops::Range;
-
-pub trait Theme {
-    fn styles(&mut self, styles: Vec<Style>) -> &str {
-        "\x1b[0m"
-    }
-
-    // usually used on input
-    // indicates the style of the first word in an input text
-    fn cmd(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    // usually used on input
-    // describes the style of a word that starts with '--' or '-' in an input text
-    fn param(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    // usually used on input
-    // describes the style of the arg that comes after a param
-    fn arg(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    // usually used on input
-    // describes the style of a flag, which represents a param with no arg
-    fn flag(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    // describes the style of an object border
-    fn border(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    fn custom(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    // describes the style of a whole body of text
-    fn text(&mut self, style: &Style) -> &str {
-        "\x1b[0m"
-    }
-
-    // gets called inside an Event that colors all objects
-    // applies what the user chooses to apply for that instance of a type from the function above
-    // the only method of this trait that is required (no default impl)
-    // NOTE: gets called inside term.process() right before term.clear() in preparation for
-    // rendering
-    fn theme(&mut self, map: &HashMap<&str, Style>);
-}
-
-// NOTE: Theme trait usage:
-// 1. implement the methods that you want to implement
-//    - ok, but what do these methods do???
-// 2. implement the theme method which calls the methods you choose to call from amongst the
-//    implemented methods of the trait
-// 3. impl theming Events fire method which calls the theme method of the Theme trait on all
-//    objects in the active Term
-//    the Theme trait should take a generic so that external crates can implement it, just like
-//    Events trait
-//    in the theme() method you take your styles and iterate through the going to be rendered
-//    buffer of every object and you make conditions for when to apply which style
-//    technically, only the theme method is needed and should take a hashmap / vec if styles
-
-// a theme being implemented means 2 things
-// border styles and value styles
-// for a container there is only border
-// for a text there is both border and value
+// pub trait Theme {
+//     fn styles(&mut self, styles: Vec<Style>) -> &str {
+//         "\x1b[0m"
+//     }
 //
-// NOTE: need a way in which a theme is applied to a whole Object
-// and if a part needs to be custom styled we write a custom style and only that part gets custom
-// styled
-// NOTE: i still cant figure out how to pull out an atomically customizable theme
-// so for now ill make the input command value custom and everything else gets to be under one
-// theme
+//     // usually used on input
+//     // indicates the style of the first word in an input text
+//     fn cmd(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     // usually used on input
+//     // describes the style of a word that starts with '--' or '-' in an input text
+//     fn param(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     // usually used on input
+//     // describes the style of the arg that comes after a param
+//     fn arg(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     // usually used on input
+//     // describes the style of a flag, which represents a param with no arg
+//     fn flag(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     // describes the style of an object border
+//     fn border(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     fn custom(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     // describes the style of a whole body of text
+//     fn text(&mut self, style: &Style) -> &str {
+//         "\x1b[0m"
+//     }
+//
+//     // gets called inside an Event that colors all objects
+//     // applies what the user chooses to apply for that instance of a type from the function above
+//     // the only method of this trait that is required (no default impl)
+//     // NOTE: gets called inside term.process() right before term.clear() in preparation for
+//     // rendering
+//     fn theme(&mut self, map: &HashMap<&str, Style>);
+// }

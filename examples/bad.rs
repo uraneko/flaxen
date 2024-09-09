@@ -1,24 +1,24 @@
 use ragout::events::*;
 use ragout::object_tree::*;
+use ragout::space::*;
 
 fn main() {
     let mut ot = ObjectTree::new();
 
-    let mut term = ot.term_ref_mut(0).unwrap();
+    let term = ot.term_ref_mut(0).unwrap();
 
-    term.container(&[0, 9], 3, 2, 54, 16);
-    term.input(
+    _ = term.container(&[0, 9], 3, 2, 54, 16, Border::None, Padding::None);
+    _ = term.input(
         &[0, 9, 2],
         6,  // x0
         0,  // y0
         30, // w
         1,  // h
-            // border *
-            // padding outer: 1 1 1 1
-            // &['h', 'e', 'l', 'l', 'o'],
+        Border::None,
+        Padding::None,
     );
 
-    term.nonedit(
+    _ = term.nonedit(
         &[0, 9, 1],
         27, // x0
         7,  // y0
@@ -27,8 +27,6 @@ fn main() {
         // value.len = 5 and so looping on 0..width stops after idx 4 of value with width = 5
         12, // w
         2,  // h
-        // border *
-        // padding outer: 1 1 1 1
         &[
             Some('w'),
             Some('o'),
@@ -37,23 +35,13 @@ fn main() {
             Some('d'),
             Some('!'),
         ],
+        false,
+        Border::None,
+        Padding::None,
     );
-    // TODO: if a value is given for text at initialization, it needs to be checked for bounds
-    // validity,
 
-    // println!("{:#?}", ot.container_ref(&[0, 9]));
-
-    // ot.container_ref_mut(&[0, 9]).unwrap().items.push(Text {
-    //     value: vec!['s', 'e', 'c', 'o', 'n', 'd', ' ', 'i', 't', 'e', 'm'],
-    //     x0: 3,
-    //     y0: 3,
-    //     ..Default::default()
-    // });
-
-    // println!("{:#?}", ot);
-
-    term.container(&[0, 2], 86, 19, 53, 14);
-    term.nonedit(
+    _ = term.container(&[0, 2], 86, 19, 53, 14, Border::None, Padding::None);
+    _ = term.nonedit(
         &[0, 2, 5],
         6,  // x0
         1,  // y0
@@ -62,9 +50,12 @@ fn main() {
         // border *
         // padding outer: 1 1 1 1
         &[Some('h'), Some('e'), Some('l'), Some('l'), Some('o')],
+        false,
+        Border::None,
+        Padding::None,
     );
 
-    term.nonedit(
+    _ = term.nonedit(
         &[0, 2, 1],
         27, // x0
         6,  // y0
@@ -83,6 +74,9 @@ fn main() {
             Some('d'),
             Some('!'),
         ],
+        false,
+        Border::None,
+        Padding::None,
     );
 
     let mut writer = std::io::stdout().lock();

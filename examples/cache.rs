@@ -12,21 +12,23 @@ fn main() {
         vec![Some('a'), Some('b'), None, Some('c')],
     ];
 
-    cache.into_iter().for_each(|c| term.cache_input(c));
+    cache
+        .into_iter()
+        .for_each(|c| term.cache_input("commander", c));
 
     println!("{:?}", term.cache);
 
-    let cch = term.load_input();
+    let cch = term.load_input("commander");
 
     println!("{:?}", cch);
 
-    term.save_input(cch);
+    term.save_input("commander", cch);
 
-    let cch = term.load_input();
+    let cch = term.load_input("commander");
 
     println!("{:?}\n", cch);
 
-    let si = serialize_input(&term.cache.get("input").unwrap()[0]);
+    let si = serialize_input(&term.cache.get("commander").unwrap()[0]);
     let di = deserialize_input(&si);
 
     println!("{:?}\n{:?}", si, di);

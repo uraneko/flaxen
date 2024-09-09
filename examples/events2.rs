@@ -36,10 +36,6 @@ fn main() {
 
     // <S<Z> as Events<A1, u8>>::fire(&mut s1, 23);
     // <S<Y> as Events<A2, i16>>::fire(&mut s2, -31);
-    //
-    // TODO: how to solve
-    // need the correct fn signature
-    //
 }
 
 trait Conclusion {}

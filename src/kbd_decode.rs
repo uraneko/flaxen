@@ -371,11 +371,6 @@ mod utf8_decoder {
 
     fn decode_4_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 4);
-        // BUG: the below check broke, so it takes to utf84 checks
-        // which do not hold true, since it is an esc seq
-        // then it crashes with failed assertion
-        // if not a valid '4 bytes' utf8 first byte
-
         if is_utf84(bytes[0], bytes[1], bytes[2], bytes[3]) {
             ke.char = Char::from_utf8(bytes);
         } else {
@@ -735,8 +730,6 @@ mod utf8_decoder {
 
                                         v.push(Ok(ke));
                                     }
-                                    // TODO: decode_n_bytes fns should be split on utf8 and esc
-                                    // seqs fns
                                     false => {
                                         let b3 = bytes.next();
 
@@ -772,8 +765,6 @@ mod utf8_decoder {
 
         v
     }
-
-    // NOTE: the problem with escape sequence is that their length is varying
 
     fn is_utf81(byte: u8) -> bool {
         byte < 128
@@ -861,9 +852,6 @@ mod utf8_decoder {
 use utf8_decoder::*;
 
 pub use utf8_decoder::{decode_ki, decode_ki_kai};
-
-// TODO: module needs a bit of refactoring
-// particularly decode_ki_kai is a big mess of redundency
 
 pub fn kbd_read() {
     let mut buf: [u8; 8] = [0; 8];

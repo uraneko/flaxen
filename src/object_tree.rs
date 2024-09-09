@@ -1,17 +1,13 @@
 use crate::render_pipeline;
-use crate::space::{between, conflicts, Border, Padding, SpaceAwareness};
+use crate::space::{area_conflicts, between, Border, Padding, SpaceAwareness};
 use crate::termbuf::winsize;
 use crate::themes::Style;
 
 use std::any::type_name;
 use std::collections::{HashMap, HashSet};
+use std::io::StdoutLock;
 use std::io::Write;
 use std::marker::PhantomData;
-
-// TODO: text position, vertical/horizontal center, start or end
-
-// TODO: ctrl + l  = clear and render whole term buffer event
-// TODO: term switch event
 
 #[derive(Debug)]
 pub struct ObjectTree {
@@ -28,19 +24,6 @@ pub enum TreeErrors {
     BoundsNotRespected,
 }
 
-// TODO: logging system since terminal logging is broken inside raw mode
-// TODO: change id implementation
-// all ids should be only 1 u8
-// terms have ids between 0 and 9
-// containers have ids between 10 and 99
-// texts have ids between 100 and 255
-// this limits the nukber of possibly coexisting objects but these numbers should be enough
-// as 1 term can host up to 90 (100 - 10) containers and not complain
-// and 1 container can host up to 156 (256 -100) items/texts
-// and there can only be 10 terms in one application at the same time
-// any app that would need more than that is an extreme edge case
-// should this crate eever take off and such an edge case appears, ill think about it then
-
 impl ObjectTree {
     pub fn new() -> Self {
         Self {
@@ -48,25 +31,6 @@ impl ObjectTree {
             active: 0,
         }
     }
-
-    // pub fn from_vec(ids: Vec<&[u8]>) -> Self {
-    //     let mut tree = Self { terms: vec![] };
-    //
-    //     let terms = vec![];
-    //     let children = vec![];
-    //
-    //     ids.into_iter().map(|id| {
-    //         if id.len() == 1 {
-    //             tree.term(id[0]);
-    //         } else if id.len() == 2 {
-    //             tree.term_ref_mut(id[0]).unwrap().container([id[0], id[1]]);
-    //         } else if id.len() == 3 {
-    //             tree.term_ref_mut([id[0], id[1], id[2]]);
-    //         }
-    //     });
-    //
-    //     tree
-    // }
 
     pub fn term(&mut self, id: u8) -> Result<(), TreeErrors> {
         if self.has_term(id) {
@@ -138,7 +102,7 @@ enum SpaceError {
 pub struct Term {
     pub overlay: bool,
     pub id: u8,
-    pub cache: HashMap<&'static str, Vec<Vec<Option<char>>>>,
+    pub cache: HashMap<String, Vec<Vec<Option<char>>>>,
     pub w: u16,
     pub h: u16,
     pub cx: u16,
@@ -169,16 +133,6 @@ impl Term {
             active: None,
         }
     }
-
-    // prints the buffer, respecting width and height
-    // pub fn print_buf(&self) {
-    //     for idxr in 0..self.buf.len() / self.w as usize {
-    //         print!("\r\n");
-    //         for idxc in 0..self.buf.len() / self.h as usize {
-    //             print!("{:?}", self.buf[idxr]);
-    //         }
-    //     }
-    // }
 
     /// adds a Permit type to the term's registry
     pub fn permit<P>(&mut self) {
@@ -226,7 +180,7 @@ impl Term {
 
         self.containers.iter().for_each(|c| {
             if e == 0 {
-                let [right, left, top, bottom] = conflicts(x0, y0, w, h, c.x0, c.y0, c.w, c.h);
+                let [right, left, top, bottom] = area_conflicts(x0, y0, w, h, c.x0, c.y0, c.w, c.h);
                 // conflict case
                 if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
                     // TODO: actually handle overlay logic
@@ -242,6 +196,15 @@ impl Term {
         Ok(())
     }
 
+    // /// makes sure that container objects are properly positioned by moving them until they don't overlap when overlay is off
+    // pub fn shift_container_area(&self, text: &mut Text) -> Result<(), SpaceError> {
+    //     Ok(())
+    // }
+}
+
+impl Term {
+    /// makes the text object with the given id the term's current active object
+    /// calls sync_cursor
     pub fn make_active(&mut self, id: [u8; 3], writer: &mut StdoutLock) -> Result<(), TreeErrors> {
         if !self.has_input(&id) {
             return Err(TreeErrors::BadID);
@@ -252,10 +215,7 @@ impl Term {
         Ok(())
     }
 
-    // TODO: dont render everything at every iteration
-    // only render all objects before loop
-    // then rerender what changes inside an iteration
-
+    /// DEPRECATED
     pub fn locate_text(&self, id: &[u8; 3]) -> Result<[u16; 2], TreeErrors> {
         if let (Some(cont), Some(input)) =
             (self.container_ref(&[id[0], id[1]]), self.input_ref(&id))
@@ -280,6 +240,7 @@ impl Term {
         }
     }
 
+    /// syncs the position of the cursor in the term display to match the data in the backend
     pub fn sync_cursor(&mut self, writer: &mut StdoutLock) -> Result<(), TreeErrors> {
         let id = self.active.unwrap();
 
@@ -306,14 +267,12 @@ impl Term {
 
         Ok(())
     }
-}
 
-impl Term {
     // returns immutable references to all text objects that have had interactions since the last event loop
     pub fn changed(&self) -> Vec<&Text> {
         self.containers
             .iter()
-            .map(|c| c.items.iter().filter(|t| t.change != 0))
+            .map(|c| c.items.iter().filter(|t| t.change > 1))
             .flatten()
             .collect()
     }
@@ -322,7 +281,7 @@ impl Term {
     pub fn changed_mut(&mut self) -> Vec<&mut Text> {
         self.containers
             .iter_mut()
-            .map(|c| c.items.iter_mut().filter(|t| t.change != 0))
+            .map(|c| c.items.iter_mut().filter(|t| t.change > 1))
             .flatten()
             .collect()
     }
@@ -364,7 +323,6 @@ impl Term {
     }
 
     // need to have space values already by the time we reach object and object auto series methods
-    // NOTE: should auto not take an object builder
 
     /// takes only term id and automatically assigns an id for the container
     /// returns the full new container id
@@ -450,6 +408,7 @@ impl Term {
             w,
             h,
             &[],
+            true,
             border,
             padding,
         );
@@ -495,6 +454,7 @@ impl Term {
         w: u16,
         h: u16,
         value: &[Option<char>],
+        interactible: bool,
         border: Border,
         padding: Padding,
     ) -> Result<(), TreeErrors> {
@@ -529,6 +489,7 @@ impl Term {
             w,
             h,
             value,
+            interactible,
             border,
             padding,
         );
@@ -565,12 +526,14 @@ impl Term {
     //     Ok(id)
     // }
 
+    /// returns a result of the active text object id
+    /// or an error if it doesn't exist
     pub fn active(&self) -> Result<[u16; 2], TreeErrors> {
-        if self.active.is_none() {
-            return Err(TreeErrors::BadID);
-        }
+        // if self.active.is_none() {
+        //     return Err(TreeErrors::BadID);
+        // }
 
-        let id = self.active.unwrap();
+        let id = self.active.unwrap_or(return Err(TreeErrors::BadID));
 
         match id[2] % 2 == 0 {
             true => {
@@ -638,10 +601,12 @@ impl Term {
             .find(|input| input.id[2] % 2 != 0 && input.id == *id)
     }
 
+    /// returns whether the term has a container with the provided id
     pub fn has_container(&self, id: &[u8; 2]) -> bool {
         self.containers.iter().find(|c| c.id == *id).is_some()
     }
 
+    /// returns whether any container in the term has an input with the provided id
     pub fn has_input(&self, id: &[u8; 3]) -> bool {
         match self.container_ref(&[id[0], id[1]]) {
             Some(cont) => cont
@@ -656,6 +621,7 @@ impl Term {
         }
     }
 
+    /// returns whether any container in the term has an noneditable with the provided id
     pub fn has_nonedit(&self, id: &[u8; 3]) -> bool {
         match self.container_ref(&[id[0], id[1]]) {
             Some(cont) => cont
@@ -671,9 +637,7 @@ impl Term {
     }
 
     pub fn assign_container_id(&self, term: u8) -> u8 {
-        // NOTE: this method should always be called inside another method/fn
-        // that checks before calling this method that
-        // the parent term with the given id exists
+        // NOTE: this method does not check the validity of the provided term id
 
         let mut id = 0;
         for cont in &self.containers {
@@ -688,9 +652,7 @@ impl Term {
     }
 
     pub fn assign_input_id(&self, term: u8, cont: u8) -> u8 {
-        // NOTE: this method should always be called inside another method/fn
-        // that checks before calling this method that
-        // the parent term and container with the given ids exist
+        // NOTE: this method does not check the validity of the provided term and container ids
         let cont = self.container_ref(&[term, cont]).unwrap();
 
         let mut id = 0;
@@ -707,9 +669,7 @@ impl Term {
     }
 
     pub fn assign_nonedit_id(&self, term: u8, cont: u8) -> u8 {
-        // NOTE: this method should always be called inside another method/fn
-        // that checks before calling this method that
-        // the parent term and container with the given ids exist
+        // NOTE: this method does not check the validity of the provided term and container ids
         let cont = self.container_ref(&[term, cont]).unwrap();
 
         let mut id = 0;
@@ -725,8 +685,6 @@ impl Term {
         id
     }
 }
-
-// TODO: need a way
 
 #[derive(Debug, Default)]
 pub struct Container {
@@ -749,13 +707,6 @@ impl std::fmt::Display for Container {
         write!(f, "{:#?}", self)
     }
 }
-
-// [IMPORTANT]NOTE:
-// the Commissioner handles all ID matters
-// he also handles all Events matters
-// and all Space allocation matters
-// he is the only one with access to the Term father
-// TODO: commissioner needs to handle the space, id requests allocations
 
 impl Container {
     pub fn new(
@@ -795,33 +746,33 @@ impl Container {
         }
     }
 
+    /// changes the border style of this container
     pub fn bstyle(&mut self, style: &Style) {
         self.bstyle = style.style();
     }
 
+    /// returns the id of the parent term of this container
     pub fn parent(&self) -> u8 {
         self.id[0]
     }
 
+    /// add new permit to the permit registry of this container
     pub fn permit<P>(&mut self) {
         self.registry.insert(type_name::<P>());
     }
 
+    /// removes a permit from the registry of this container
     pub fn revoke<P>(&mut self) -> bool {
         self.registry.remove(type_name::<P>())
     }
 
+    /// checks whether this container's permit registry has the provided permit
     pub fn has_permit<P>(&self) -> bool {
         self.registry.contains(type_name::<P>())
     }
 
-    /// takes all items in container and makes a buffer of char values that correspond to how that
-    /// container should look like in term display
-    pub fn buffer(&self) -> Vec<char> {
-        vec![]
-    }
-
     // called on auto and base input/nonedit initializers
+    /// checks for the validity of a text object's area before creating it
     pub fn assign_valid_text_area(
         &self, // container
         text: &Text,
@@ -830,7 +781,7 @@ impl Container {
         let [w, h] = text.decorate();
 
         // check if new area is bigger than parent container area
-        // FIX: the first area check is wrong
+        // FIXME: the first area check is wrong
         // it should be:
         // if overlay in parent is on then current check
         // else parent area - all children area check against new container area
@@ -849,7 +800,7 @@ impl Container {
 
         self.items.iter().for_each(|t| {
             if e == 0 {
-                let [right, left, top, bottom] = conflicts(x0, y0, w, h, t.x0, t.y0, t.w, t.h);
+                let [right, left, top, bottom] = area_conflicts(x0, y0, w, h, t.x0, t.y0, t.w, t.h);
                 // conflict case
                 if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
                     // TODO: actually handle overlay logic
@@ -864,16 +815,21 @@ impl Container {
 
         Ok(())
     }
+
+    // /// makes sure that text objects are properly positioned by moving them until they don't overlap when overlay is off
+    // fn shift_text_area(&self, text: &mut Text) -> Result<(), SpaceError> {
+    //     Ok(())
+    // }
 }
 
-// TODO: add proper lifetime
 #[derive(Debug, Default)]
 pub struct Text {
     pub layer: u8,
+    pub name: String,
     pub id: [u8; 3],
     pub temp: Vec<Option<char>>,
     pub value: Vec<Option<char>>,
-    pub hicu: usize,
+    pub hicu: Option<usize>,
     pub w: u16,
     pub h: u16,
     pub cx: u16,
@@ -890,7 +846,7 @@ pub struct Text {
     pub vstyle: String,
 }
 
-// Inputs can only have pair IDs
+// NOTE: Inputs can only have pair IDs
 // while NonEdits can only have odd IDs
 impl Text {
     pub fn new(
@@ -902,20 +858,22 @@ impl Text {
         w: u16,
         h: u16,
         value: &[Option<char>],
+        interactible: bool,
         border: Border,
         padding: Padding,
     ) -> Text {
         Text {
             id,
+            name: "Input".to_string(),
             w,
             h,
             temp: vec![],
-            hicu: 0,
+            hicu: None,
             x0,
             y0,
             ax0,
             ay0,
-            change: 0,
+            change: interactible.then_some(1).unwrap_or(0),
             border,
             padding,
             value: {
@@ -953,35 +911,26 @@ impl Text {
     //     }
     // }
 
-    // pub fn from_builder(ob: &ObjectBuilder) -> Self {
-    //     ob.text()
-    // }
-
+    /// returns the id of the parent container of this container
     pub fn parent(&self) -> [u8; 2] {
         [self.id[0], self.id[1]]
     }
 
+    /// add new permit to the permit registry of this container
     pub fn permit<P>(&mut self) {
         self.registry.insert(type_name::<P>());
     }
 
+    /// removes a permit from the registry of this container
     pub fn revoke<P>(&mut self) -> bool {
         self.registry.remove(type_name::<P>())
     }
 
+    /// checks whether this container's permit registry has the provided permit
     pub fn has_permit<P>(&self) -> bool {
         self.registry.contains(type_name::<P>())
     }
 }
-
-#[derive(Debug)]
-pub enum IDError {
-    ProgramIsUnique,
-}
-
-use std::io::StdoutLock;
-
-struct InnerLogic;
 
 #[cfg(test)]
 mod tests0 {}
