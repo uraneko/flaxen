@@ -661,7 +661,9 @@ mod utf8_decoder {
                                                     );
                                                     v.push(Ok(ke));
                                                 }
-                                                _ => unreachable!("you cant get here:{b6}"),
+                                                _ => {
+                                                    unreachable!("you cant get here: bytes7 = {b6}")
+                                                }
                                             }
                                         }
                                     }

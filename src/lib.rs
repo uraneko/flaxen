@@ -3,7 +3,6 @@ pub mod cache;
 pub mod events;
 pub mod input;
 pub mod object_tree;
-pub mod presets;
 pub mod raw_mode;
 pub mod render_pipeline;
 pub mod space;
@@ -21,9 +20,20 @@ pub use termbuf::*;
 // TODO: input objects mevement events
 // TODO: emoji selection event
 
-pub fn frames(fps: u16) {
-    let fps = 60;
+pub fn frames(fps: u64) {
     let frames = 1000 / fps;
 
-    std::thread::sleep(std::time::Duration::from_secs(frames))
+    std::thread::sleep(std::time::Duration::from_millis(frames))
+}
+
+use std::io::StdoutLock;
+use std::io::Write;
+
+pub fn leave_alternate_screen(writer: &mut StdoutLock) {
+    _ = writer.write(b"\x1b[?1049l");
+}
+
+pub fn enter_alternate_screen(writer: &mut StdoutLock) {
+    _ = writer.write(b"\x1b[?1049h\x1b[0;0f");
+    _ = writer.flush();
 }

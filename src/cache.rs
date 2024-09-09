@@ -43,7 +43,9 @@ pub fn deserialize_input(value: &str) -> Vec<Option<char>> {
 impl Term {
     /// caches input history in the term cache map field
     pub fn cache_input(&mut self, key: &str, entry: Vec<Option<char>>) {
-        if !self.cache.contains_key(key) {
+        if entry.iter().all(|c| c.is_none()) {
+            return;
+        } else if !self.cache.contains_key(key) {
             self.cache.insert(key.to_owned(), vec![entry]);
         } else {
             self.cache.get_mut(key).unwrap().push(entry);
@@ -149,7 +151,7 @@ impl Text {
     // hicu = cache.len() -> reached end of cache, return
     // hicu > 0 and hicu < cache.len() -> carry on
     pub fn history_up(&mut self, cache: &[Vec<Option<char>>]) {
-        print!("\r\n\n\n\n\n\n\nin: {}, {}", self.hicu, cache.len());
+        // print!("\r\n\n\n\n\n\n\nin: {}, {}", self.hicu, cache.len());
         if (self.hicu == 0 && cache.is_empty()) || self.hicu == cache.len() {
             return;
         } else if (self.hicu == 0 && !cache.is_empty())
@@ -170,11 +172,11 @@ impl Text {
             // NOTE: this module does nothing to validate this assertion at any point
             assert!(self.value.len() >= value.len());
 
-            for idx in 0..value.len() - 1 {
+            for idx in 0..value.len() {
                 self.value[idx] = value[idx];
             }
         }
-        print!("\r\n\n\n\n\n\n\nout: {:?}", self.hicu);
+        // print!("\r\n\n\n\n\n\n\nout: {:?}", self.hicu);
     }
 
     // cases:
@@ -182,7 +184,7 @@ impl Text {
     // hicu = 1 -> go to 0, return temp to value
     // hicu > 0 && hicu < cache.len -> carry on
     pub fn history_down(&mut self, cache: &[Vec<Option<char>>]) {
-        print!("\r\n\n\n\n\n\n\nin: {:?}", self.hicu);
+        // print!("\r\n\n\n\n\n\n\nin: {:?}", self.hicu);
         if self.hicu == 0 {
             return;
         } else if self.hicu == 1 {
@@ -199,12 +201,12 @@ impl Text {
             // NOTE: this module does nothing to validate this assertion at any point
             assert!(self.value.len() >= value.len());
 
-            for idx in 0..value.len() - 1 {
+            for idx in 0..value.len() {
                 self.value[idx] = value[idx];
             }
         }
 
-        print!("\r\n\n\n\n\n\n\n\nout: {:?}", self.hicu);
+        // print!("\r\n\n\n\n\n\n\n\nout: {:?}", self.hicu);
     }
 
     // pub fn history_filter<'a>(

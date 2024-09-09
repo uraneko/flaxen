@@ -74,8 +74,7 @@ fn main() {
     // _ = writer.write(style1.style().as_bytes());
 
     let ts = raw_mode::raw_mode();
-    _ = writer.write(b"\x1b[?1049h\x1b[0;0f");
-    _ = writer.flush();
+    enter_alternate_screen(&mut writer);
 
     term.clear(&mut writer);
     term.render(&mut writer);
@@ -86,19 +85,22 @@ fn main() {
 
     let mut load = true;
     loop {
+        ragout::frames(60);
+
+        let ws = crate::winsize::from_ioctl();
+
+        let (cols, rows) = (ws.cols(), ws.rows());
+        if cols != term.w || rows != term.h {
+            print!("\r\n\n\n\nabababababa");
+            term.fire(crate::events::core::WindowResized::new(cols, rows));
+        }
+
         read_ki(&mut reader, &mut i);
         let mut ui = decode_ki_kai(i.drain(..).collect());
 
-        // if ctrl-c then quit the loop
-        if let Ok(KbdEvent {
-            char: Char::Char('c'),
-            modifiers: Modifiers(2),
-        }) = ui[0]
-        {
-            break;
-        }
-
         let ke = ui.remove(0).unwrap();
+
+        term.fire((&ke, &mut writer, &ts));
 
         if let Some(id) = term.fire(&ke) {
             _ = term.make_active(id, &mut writer);
@@ -133,6 +135,6 @@ fn main() {
     // BUG: moving a Text Object cx and cy before switching to a different Text messes up the
     // rendering positions
 
-    raw_mode::cooked_mode(&ts);
-    _ = writer.write(b"\x1b[?1049l");
+    // raw_mode::cooked_mode(&ts);
+    // leave_alternate_screen(&mut writer);
 }

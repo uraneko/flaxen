@@ -1,20 +1,28 @@
 use crate::events::{Events, EventsConclusion, EventsTrigger};
 use crate::input::keyboard::{Char, KbdEvent, Modifiers, CC};
 use crate::object_tree::{Term, Text};
+use crate::raw_mode::termios;
 use crate::space::SpaceAwareness;
 
-struct WindowResized(u16, u16);
+pub struct WindowResized(u16, u16);
+
+impl WindowResized {
+    pub fn new(w: u16, h: u16) -> Self {
+        Self(w, h)
+    }
+}
 
 impl EventsTrigger<CoreEvents> for WindowResized {}
 
 impl EventsConclusion<CoreEvents> for () {}
 
 // Anchor
-struct CoreEvents;
+pub struct CoreEvents;
 
 // Permit
-struct TermCentral;
+pub struct TermCentral;
 
+// BUG: this is broken
 impl Events<TermCentral, CoreEvents, WindowResized> for Term {
     fn fire(&mut self, input: WindowResized) {
         self.containers.iter_mut().for_each(|c| {
@@ -103,4 +111,25 @@ impl<'a> Events<InteractiveSwitch, Interactive, &'a KbdEvent> for Term {
     }
 }
 
-impl Text {}
+impl EventsTrigger<CoreEvents> for (&KbdEvent, &mut StdoutLock<'static>, &termios) {}
+
+impl<'a> Events<BasicInput, CoreEvents, (&'a KbdEvent, &'a mut StdoutLock<'static>, &'a termios)>
+    for Term
+{
+    fn fire(&mut self, values: (&'a KbdEvent, &'a mut StdoutLock<'static>, &'a termios)) {
+        let (input, writer, ts) = (values.0, values.1, values.2);
+        match (&input.char, &input.modifiers) {
+            (Char::Char('c'), Modifiers(2)) => {
+                crate::raw_mode::cooked_mode(&ts);
+                crate::leave_alternate_screen(writer);
+
+                std::process::exit(0);
+            }
+            (Char::Char('l'), Modifiers(2)) => {
+                self.clear(writer);
+                self.render(writer)
+            }
+            _ => {}
+        }
+    }
+}

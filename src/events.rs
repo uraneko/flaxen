@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-pub mod builtin;
+pub mod core;
 pub mod text_input_logic;
 
 // NOTE: user can create their own type and implement Event for it
