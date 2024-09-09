@@ -1,7 +1,8 @@
 use crate::object_tree::{Term, Text};
-use std::collections::HashMap;
 
+use std::collections::HashMap;
 use std::fs::{create_dir, create_dir_all, metadata, File};
+use std::io::Read;
 use std::io::Write;
 use std::os::unix::fs::FileExt;
 
@@ -52,16 +53,45 @@ impl Term {
     /// loads input history from cached file
     /// if parent dir or cahce file do not exist
     /// this returns a None, otherwise it returns a Some()
-    pub fn load_input(&self, key: &str) -> Option<File> {
+    pub fn load_input(&mut self, key: &str) -> Option<File> {
         if !std::path::Path::new("cache/input").is_dir() {
             return None;
         }
 
-        std::fs::OpenOptions::new()
+        let f = std::fs::OpenOptions::new()
             .write(true)
+            .read(true)
             .open(format!("cache/input/{}.json", key))
-            .ok()
-        // .unwrap_or_else(|_| File::create("cache/input.json").unwrap())
+            .ok();
+
+        let mut cache = String::new();
+        let mut f = f.unwrap();
+
+        f.read_to_string(&mut cache).unwrap();
+
+        let cache = cache
+            .trim_start_matches("{\"cache\": [")
+            .trim_end_matches("]}");
+
+        let mut lines = cache.lines().filter(|l| !l.is_empty());
+
+        let cache = match self.cache.get_mut(key) {
+            None => {
+                self.cache.insert(key.to_string(), vec![]);
+                self.cache.get_mut(key).unwrap()
+            }
+            Some(cache) => cache,
+        };
+
+        while let Some(mut line) = lines.next() {
+            line = line.trim().trim_start_matches('"').trim_end_matches("\",");
+            cache.push(deserialize_input(&line));
+            // print!("{{ {} }}", line);
+        }
+
+        // println!("{:?}", self.cache);
+
+        Some(f)
     }
 
     /// caches the input history into its corresponding cache file
@@ -114,46 +144,67 @@ impl Term {
 }
 
 impl Text {
+    // cases:
+    // hicu = 0 -> is cache empty? yes return : no carry on
+    // hicu = cache.len() -> reached end of cache, return
+    // hicu > 0 and hicu < cache.len() -> carry on
     pub fn history_up(&mut self, cache: &[Vec<Option<char>>]) {
-        if (self.hicu.is_some() && self.hicu.unwrap() == cache.len() - 1) || cache.is_empty() {
-            print!("\r\n\n\n\n\n\n\n\n\n\n\n1");
+        print!("\r\n\n\n\n\n\n\nin: {}, {}", self.hicu, cache.len());
+        if (self.hicu == 0 && cache.is_empty()) || self.hicu == cache.len() {
             return;
-        } else if self.temp.is_empty() && self.hicu.is_none() {
-            print!("\r\n\n\n\n\n\n\n\n\n\n\n2");
-            self.temp = self.value.drain(..).collect();
-            self.hicu = Some(0)
-        }
-        print!("\r\n\n\n\n\n\n\n\n\n\n\n0");
+        } else if (self.hicu == 0 && !cache.is_empty())
+            || (self.hicu > 0 && self.hicu < cache.len())
+        {
+            if self.hicu == 0 && !cache.is_empty() {
+                // update temp and clear value
+                self.temp = self.value.clone();
+            }
+            self.value.iter_mut().for_each(|v| *v = None);
 
-        self.value = cache[cache.len() - 1 - self.hicu.unwrap()].clone();
-        if self.hicu.unwrap() > 0 {
-            *self.hicu.as_mut().unwrap() += 1;
+            // always increment hicu before using it in cache index
+            self.hicu += 1;
+
+            // get cached value and clone it to self.value
+            let value = &cache[cache.len() - self.hicu];
+
+            // NOTE: this module does nothing to validate this assertion at any point
+            assert!(self.value.len() >= value.len());
+
+            for idx in 0..value.len() - 1 {
+                self.value[idx] = value[idx];
+            }
         }
-        print!("\r\n\n\n\n\n\n\n{:?}", self.hicu);
+        print!("\r\n\n\n\n\n\n\nout: {:?}", self.hicu);
     }
 
+    // cases:
+    // hicu = 0 -> return
+    // hicu = 1 -> go to 0, return temp to value
+    // hicu > 0 && hicu < cache.len -> carry on
     pub fn history_down(&mut self, cache: &[Vec<Option<char>>]) {
-        if cache.is_empty() {
-            print!("\r\n\n\n\n\n\n\n\n\n\n\n1");
+        print!("\r\n\n\n\n\n\n\nin: {:?}", self.hicu);
+        if self.hicu == 0 {
             return;
-        } else if self.hicu.is_none() {
-            print!("\r\n\n\n\n\n\n\n\n\n\n\n2");
-            if !self.temp.is_empty() {
-                self.value = self.temp.drain(..).collect();
+        } else if self.hicu == 1 {
+            self.hicu -= 1;
+            assert_eq!(self.value.len(), self.temp.len());
+            self.value = self.temp.drain(..).collect();
+        } else if self.hicu > 0 && self.hicu <= cache.len() {
+            self.hicu -= 1;
+
+            self.value.iter_mut().for_each(|v| *v = None);
+
+            let value = &cache[cache.len() - self.hicu];
+
+            // NOTE: this module does nothing to validate this assertion at any point
+            assert!(self.value.len() >= value.len());
+
+            for idx in 0..value.len() - 1 {
+                self.value[idx] = value[idx];
             }
-            return;
-        } else if self.hicu.is_some() && self.hicu.unwrap() == 0 {
-            print!("\r\n\n\n\n\n\n\n\n\n\n\n3");
-            self.hicu = None;
         }
 
-        print!("\r\n\n\n\n\n\n\n0");
-        self.value = cache[cache.len() - 1 - self.hicu.unwrap_or(0)].clone();
-        if self.hicu.is_some() {
-            print!("\r\n\n\n\n\n\n\n\n\n\n\n00");
-            *self.hicu.as_mut().unwrap() -= 1;
-        }
-        print!("\r\n\n\n\n\n\n\n{:?}", self.hicu);
+        print!("\r\n\n\n\n\n\n\n\nout: {:?}", self.hicu);
     }
 
     // pub fn history_filter<'a>(

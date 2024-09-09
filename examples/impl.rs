@@ -1,8 +1,7 @@
 #![allow(refining_impl_trait)]
 use ragout::events::{Events, EventsConclusion, EventsTrigger};
-use ragout::kbd_decode::{Char, KbdEvent, Modifiers, CC};
+use ragout::input::keyboard::{Char, KbdEvent, Modifiers, CC};
 use ragout::object_tree::{Term, Text};
-use ragout::space::SpaceAwareness;
 
 struct WindowResized(u16, u16);
 

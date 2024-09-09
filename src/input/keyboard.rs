@@ -320,12 +320,7 @@ mod utf8_decoder {
     /// 110 as its highest 3 bits and a second byte that has 10 as its highest 2 bits
     fn decode_2_bytes(bytes: &[u8], ke: &mut KbdEvent) {
         assert_eq!(bytes.len(), 2);
-        // not the first byte of a 2 bytes utf8 so not a utf8 value
-        // by elimination, this is an alt + ascii event
-        // FIXME: these utf8 conditions are wrong;
-        // if 1 of the 2 highest bits matches it wont give a 0,
-        // despite only one bit matching
-        // FIX
+        // a 2 bytes utf8 value or an ascii + alt
         if is_utf82(bytes[0], bytes[1]) {
             ke.char = Char::from_utf8(bytes);
         } else {

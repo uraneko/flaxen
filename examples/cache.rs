@@ -16,20 +16,16 @@ fn main() {
         .into_iter()
         .for_each(|c| term.cache_input("commander", c));
 
-    println!("{:?}", term.cache);
+    // println!("{:?}", term.cache);
 
     let cch = term.load_input("commander");
-
-    println!("{:?}", cch);
 
     term.save_input("commander", cch);
 
-    let cch = term.load_input("commander");
-
-    println!("{:?}\n", cch);
+    // let cch = term.load_input("commander");
 
     let si = serialize_input(&term.cache.get("commander").unwrap()[0]);
     let di = deserialize_input(&si);
 
-    println!("{:?}\n{:?}", si, di);
+    // println!("{:?}\n{:?}", si, di);
 }

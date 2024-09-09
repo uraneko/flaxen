@@ -1,5 +1,4 @@
-use ragout::kbd_decode::read_ki;
-use ragout::mouse_input::*;
+use ragout::input::{keyboard::read_ki, mouse::*};
 use ragout::raw_mode::raw_mode;
 use ragout::winsize;
 

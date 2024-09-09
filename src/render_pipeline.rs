@@ -9,6 +9,8 @@ use std::io::{StdoutLock, Write};
 // its id is valid,
 // its dimensions are valid, including overlay
 
+// NOTE: the render methods here depend on the value field of text objects having a text.w * text.h  len
+
 impl Term {
     /// renders only the text objects that have seen some value/border change since the last event
     /// loop iteration, either through user interaction or some background events being triggered

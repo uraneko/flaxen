@@ -10,6 +10,7 @@ fn main() {
     _ = term.container(&[0, 9], 3, 2, 54, 16, Border::None, Padding::None);
     _ = term.input(
         &[0, 9, 2],
+        "",
         6,  // x0
         0,  // y0
         30, // w

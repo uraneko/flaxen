@@ -7,7 +7,7 @@ use std::io::Write;
 
 fn main() {
     let mut tree = object_tree::ObjectTree::new();
-    let mut term = tree.term_ref_mut(0).unwrap();
+    let term = tree.term_ref_mut(0).unwrap();
     _ = term.container(
         &[0, 0],
         3,
@@ -38,6 +38,7 @@ fn main() {
     );
     _ = term.input(
         &[0, 0, 0],
+        "commander",
         1,
         1,
         23,
@@ -52,6 +53,7 @@ fn main() {
     );
     _ = term.input(
         &[0, 1, 0],
+        "",
         3,
         3,
         25,
@@ -82,6 +84,7 @@ fn main() {
 
     let mut i = vec![];
 
+    let mut load = true;
     loop {
         read_ki(&mut reader, &mut i);
         let mut ui = decode_ki_kai(i.drain(..).collect());
@@ -101,12 +104,15 @@ fn main() {
             _ = term.make_active(id, &mut writer);
         }
 
-        // this should have been: term's active object render
-        // FIXME: add term active object and render it in the loop
         if let Some(id) = term.active {
             let input_object = term.input_ref_mut(&id).unwrap();
             let key = input_object.name.clone();
+            if load {
+                term.load_input(&key);
+                load = false;
+            }
             let cache = term.cache.get(&key).unwrap_or(&vec![]).clone();
+            // print!("\r\n\n\n\n\n\n{:?}", term.cache);
             let input_object = term.input_ref_mut(&id).unwrap();
             input_object.vstyle(&style1);
             let res = input_object.fire((&ke, &cache));

@@ -1,6 +1,6 @@
 use std::io::{StdoutLock, Write};
 
-use crate::kbd_decode::Modifiers;
+use crate::input::keyboard::Modifiers;
 
 #[derive(Default, Debug, Clone)]
 pub struct MouseEvent {

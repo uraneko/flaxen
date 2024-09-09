@@ -17,16 +17,16 @@ fn main() {
     let mut ot = ObjectTree::new();
     let term = ot.term_ref_mut(0).unwrap();
 
-    term.container(&[0, 9], 3, 2, 54, 16);
-    term.input(
+    _ = term.container(&[0, 9], 3, 2, 54, 16, Border::None, Padding::None);
+    _ = term.input(
         &[0, 9, 2],
+        "",
         6,  // x0
         0,  // y0
         35, // w
         6,  // h
         Border::None,
         Padding::None,
-        &['h', 'e', 'l', 'l', 'o'],
     );
 
     let pos = term.locate_text(&[0, 9, 2]).unwrap();

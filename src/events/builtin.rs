@@ -1,5 +1,5 @@
 use crate::events::{Events, EventsConclusion, EventsTrigger};
-use crate::kbd_decode::{Char, KbdEvent, Modifiers, CC};
+use crate::input::keyboard::{Char, KbdEvent, Modifiers, CC};
 use crate::object_tree::{Term, Text};
 use crate::space::SpaceAwareness;
 

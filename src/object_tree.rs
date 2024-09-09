@@ -379,6 +379,7 @@ impl Term {
     pub fn input(
         &mut self,
         id: &[u8],
+        name: &str,
         x0: u16,
         y0: u16,
         w: u16,
@@ -401,6 +402,7 @@ impl Term {
 
         let input = Text::new(
             [id[0], id[1], id[2]],
+            name,
             x0,
             y0,
             ax0,
@@ -482,6 +484,7 @@ impl Term {
 
         let nonedit = Text::new(
             [id[0], id[1], id[2]],
+            "",
             x0,
             y0,
             ax0,
@@ -829,7 +832,7 @@ pub struct Text {
     pub id: [u8; 3],
     pub temp: Vec<Option<char>>,
     pub value: Vec<Option<char>>,
-    pub hicu: Option<usize>,
+    pub hicu: usize,
     pub w: u16,
     pub h: u16,
     pub cx: u16,
@@ -851,6 +854,7 @@ pub struct Text {
 impl Text {
     pub fn new(
         id: [u8; 3],
+        name: &str,
         x0: u16,
         y0: u16,
         ax0: u16,
@@ -864,11 +868,11 @@ impl Text {
     ) -> Text {
         Text {
             id,
-            name: "Input".to_string(),
+            name: name.to_string(),
             w,
             h,
             temp: vec![],
-            hicu: None,
+            hicu: 0,
             x0,
             y0,
             ax0,

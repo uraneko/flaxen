@@ -1,8 +1,7 @@
 #![allow(warnings)]
 pub mod cache;
 pub mod events;
-pub mod kbd_decode;
-pub mod mouse_input;
+pub mod input;
 pub mod object_tree;
 pub mod presets;
 pub mod raw_mode;
@@ -11,7 +10,7 @@ pub mod space;
 pub mod termbuf;
 pub mod themes;
 
-pub use kbd_decode::*;
+pub use input::keyboard::*;
 pub use raw_mode::*;
 pub use termbuf::*;
 
@@ -21,3 +20,10 @@ pub use termbuf::*;
 // TODO: menu selection events
 // TODO: input objects mevement events
 // TODO: emoji selection event
+
+pub fn frames(fps: u16) {
+    let fps = 60;
+    let frames = 1000 / fps;
+
+    std::thread::sleep(std::time::Duration::from_secs(frames))
+}
