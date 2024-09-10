@@ -29,12 +29,11 @@ fn main() {
         Padding::None,
     );
 
-    let pos = term.locate_text(&[0, 9, 2]).unwrap();
-
-    let res = term.make_active([0, 9, 2], &mut writer);
+    let res = term.make_active(&[0, 9, 2]);
     if let Err(_) = res {
         std::process::exit(0)
     }
+    term.render_cursor(&mut writer);
 
     let mut reader = std::io::stdin().lock();
     let mut i = vec![];
@@ -70,8 +69,6 @@ fn main() {
         let c = term.container_ref_mut(&[0, 9]).unwrap();
         c.border = ragout::space::Border::Uniform('0');
         c.render(&mut writer);
-
-        _ = term.sync_cursor(&mut writer);
 
         _ = writer.flush();
 

@@ -12,6 +12,12 @@ use std::io::{StdoutLock, Write};
 // NOTE: the render methods here depend on the value field of text objects having a text.w * text.h  len
 
 impl Term {
+    /// renders the cursor in the self cx, cy position
+    pub fn render_cursor(&self, writer: &mut StdoutLock) {
+        let pos = format!("\x1b[{};{}f", self.cy, self.cx);
+        _ = writer.write(pos.as_bytes());
+    }
+
     /// renders only the text objects that have seen some value/border change since the last event
     /// loop iteration, either through user interaction or some background events being triggered
     pub fn live_render(&self, writer: &mut StdoutLock) {

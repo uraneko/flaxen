@@ -1,5 +1,5 @@
 use crate::render_pipeline;
-use crate::space::{area_conflicts, between, Border, Padding, SpaceAwareness};
+use crate::space::{area_conflicts, between, Border, Padding};
 use crate::termbuf::winsize;
 use crate::themes::Style;
 
@@ -16,10 +16,10 @@ pub struct ObjectTree {
 }
 
 #[derive(Debug)]
-pub enum TreeErrors {
+pub enum ObjectTreeErrors {
     BadID,
     BadValue,
-    IDExists,
+    IDAlreadyExists,
     ParentNotFound,
     BoundsNotRespected,
 }
@@ -32,24 +32,28 @@ impl ObjectTree {
         }
     }
 
-    pub fn term(&mut self, id: u8) -> Result<(), TreeErrors> {
+    pub fn term(&mut self, id: u8) -> Result<(), ObjectTreeErrors> {
         if self.has_term(id) {
             eprintln!("bad id");
-            return Err(TreeErrors::IDExists);
+            return Err(ObjectTreeErrors::IDAlreadyExists);
         }
         self.terms.push(Term::new(id));
 
         Ok(())
     }
 
-    pub fn make_active(&mut self, id: u8) -> Result<(), TreeErrors> {
+    pub fn active(&self) -> u8 {
+        self.active
+    }
+
+    pub fn make_active(&mut self, id: u8) -> Result<(), ObjectTreeErrors> {
         if self.has_term(id) {
             self.active = id;
 
             return Ok(());
         }
 
-        Err(TreeErrors::BadID)
+        Err(ObjectTreeErrors::BadID)
     }
 
     /// takes no id and automatically assigns an id for the term
@@ -114,6 +118,14 @@ pub struct Term {
     pub active: Option<[u8; 3]>,
 }
 
+fn parse_permit(p: &'static str) -> &'static str {
+    if p.contains(':') {
+        return p.split("::").last().unwrap();
+    }
+
+    p
+}
+
 impl Term {
     pub fn new(id: u8) -> Self {
         let ws = winsize::from_ioctl();
@@ -136,21 +148,23 @@ impl Term {
 
     /// adds a Permit type to the term's registry
     pub fn permit<P>(&mut self) {
-        self.registry.insert(type_name::<P>());
+        self.registry.insert(parse_permit(type_name::<P>()));
     }
 
     /// removes a Permit type to the term's registry
     pub fn revoke<P>(&mut self) -> bool {
-        self.registry.remove(type_name::<P>())
+        self.registry.remove(parse_permit(type_name::<P>()))
     }
 
     /// checks if term has a Permit in its registry
     pub fn has_permit<P>(&self) -> bool {
-        self.registry.contains(type_name::<P>())
+        self.registry.contains(parse_permit(type_name::<P>()))
     }
 
-    // NOTE: for now gonna ignore overlay totally
+    // NOTE/TODO: for now gonna ignore overlay totally
 
+    // since overlay is not implemented yet, this doesn't assign anything but just checks that the
+    // area is valid
     // called on container auto and basic initializers
     pub fn assign_valid_container_area(
         &self, // term
@@ -165,6 +179,7 @@ impl Term {
         // it should be:
         // if overlay in parent is on then current check
         // else parent area - all children area check against new container area
+
         if self.w * self.h < w * h
             || x0 > self.w
             || y0 > self.h
@@ -180,7 +195,8 @@ impl Term {
 
         self.containers.iter().for_each(|c| {
             if e == 0 {
-                let [right, left, top, bottom] = area_conflicts(x0, y0, w, h, c.x0, c.y0, c.w, c.h);
+                let [top, right, bottom, left] =
+                    area_conflicts(x0, y0, cont.w, cont.h, c.x0, c.y0, c.w, c.h);
                 // conflict case
                 if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
                     // TODO: actually handle overlay logic
@@ -204,71 +220,42 @@ impl Term {
 
 impl Term {
     /// makes the text object with the given id the term's current active object
-    /// calls sync_cursor
-    pub fn make_active(&mut self, id: [u8; 3], writer: &mut StdoutLock) -> Result<(), TreeErrors> {
-        if !self.has_input(&id) {
-            return Err(TreeErrors::BadID);
+    /// places cursor in the new position by calling sync_cursor
+    pub fn make_active(&mut self, id: &[u8; 3]) -> Result<(), ObjectTreeErrors> {
+        let condition = match id[2] % 2 == 0 {
+            true => self.has_input(&id),
+            false => self.has_nonedit(&id) && self.nonedit_ref(&id).unwrap().change > 0,
+        };
+
+        if !condition {
+            return Err(ObjectTreeErrors::BadID);
         }
-        self.active = Some(id);
-        self.sync_cursor(writer);
+
+        self.active = Some(*id);
+        self.sync_cursor();
 
         Ok(())
     }
 
-    /// DEPRECATED
-    pub fn locate_text(&self, id: &[u8; 3]) -> Result<[u16; 2], TreeErrors> {
-        if let (Some(cont), Some(input)) =
-            (self.container_ref(&[id[0], id[1]]), self.input_ref(&id))
-        {
-            let [_, cpol, cpot, _, _, cpil, cpit, _] =
-                render_pipeline::spread_padding(&cont.padding);
-            let cb = if let Border::None = cont.border { 0 } else { 1 };
-
-            let [_, ipol, ipot, _, _, ipil, ipit, _] =
-                render_pipeline::spread_padding(&input.padding);
-            let ib = if let Border::None = input.border {
-                0
-            } else {
-                1
-            };
-            Ok([
-                cpol + cb + cpil + cont.x0 + ipol + ib + ipil + input.x0 + 1 + input.cx,
-                cpot + cb + cpit + cont.y0 + ipot + ib + ipit + input.y0 + input.cy,
-            ])
-        } else {
-            return Err(TreeErrors::BadID);
-        }
-    }
-
     /// syncs the position of the cursor in the term display to match the data in the backend
-    pub fn sync_cursor(&mut self, writer: &mut StdoutLock) -> Result<(), TreeErrors> {
+    pub fn sync_cursor(&mut self) -> Result<(), ObjectTreeErrors> {
         let id = self.active.unwrap();
+        let text = if id[2] % 2 == 0 {
+            self.input_ref(&id)
+        } else {
+            self.nonedit_ref(&id)
+        }
+        .unwrap();
 
-        let Ok([cx, cy]) = self.locate_text(&id) else {
-            return Err(TreeErrors::BadID);
-        };
-
-        let [cx, cy] = match id[2] % 2 == 0 {
-            true => {
-                let t = self.input_ref(&id).unwrap();
-                [t.ax0 + t.cx, t.ay0 + t.cy]
-            }
-            false => {
-                let t = self.nonedit_ref(&id).unwrap();
-                [t.ax0 + t.cx, t.ay0 + t.cy]
-            }
-        };
+        let [cx, cy] = [text.ax0 + text.cx, text.ay0 + text.cy];
 
         self.cx = cx;
         self.cy = cy;
 
-        let pos = format!("\x1b[{};{}f", self.cy, self.cx);
-        _ = writer.write(pos.as_bytes());
-
         Ok(())
     }
 
-    // returns immutable references to all text objects that can be interacted with
+    /// returns immutable references to all text objects that can be interacted with
     pub fn interactables(&self) -> Vec<&Text> {
         self.containers
             .iter()
@@ -277,6 +264,10 @@ impl Term {
             .collect()
     }
 
+    /// returns an Optional of the next user interactable object
+    /// the next interactable is either the next inside the current container
+    /// or the first interactable inside the next container
+    /// or the first container's first interactable if the current one is the last of all
     pub fn interactable_next(&self) -> Option<[u8; 3]> {
         if self.active.is_none() {
             return None;
@@ -299,6 +290,10 @@ impl Term {
         Some(interactables[(pos + 1) as usize].id)
     }
 
+    /// returns an Optional of the prev user interactable object
+    /// the prev interactable is either the prev inside the current container
+    /// or the last interactable inside the prev container
+    /// or the last container's last interactable if the current one is the first of all
     pub fn interactable_prev(&self) -> Option<[u8; 3]> {
         if self.active.is_none() {
             return None;
@@ -321,7 +316,7 @@ impl Term {
         Some(interactables[(pos - 1) as usize].id)
     }
 
-    // returns immutable references to all text objects that have had interactions since the last event loop
+    /// returns immutable references to all text objects that have had interactions since the last event loop
     pub fn changed(&self) -> Vec<&Text> {
         self.containers
             .iter()
@@ -330,7 +325,7 @@ impl Term {
             .collect()
     }
 
-    // returns mutable references to all text objects that have had interactions since the last event loop
+    /// returns mutable references to all text objects that have had interactions since the last event loop
     pub fn changed_mut(&mut self) -> Vec<&mut Text> {
         self.containers
             .iter_mut()
@@ -358,19 +353,56 @@ impl Term {
         h: u16,
         border: Border,
         padding: Padding,
-    ) -> Result<(), TreeErrors> {
+    ) -> Result<(), ObjectTreeErrors> {
         if id.len() > 2 || self.has_container(&[id[0], id[1]]) {
             eprintln!("bad id");
-            return Err(TreeErrors::BadID);
+            return Err(ObjectTreeErrors::BadID);
         }
 
         let cont = Container::new([id[0], id[1]], x0, y0, w, h, border, padding);
 
         if self.assign_valid_container_area(&cont).is_err() {
-            return Err(TreeErrors::BoundsNotRespected);
+            return Err(ObjectTreeErrors::BoundsNotRespected);
         }
 
         self.containers.push(cont);
+
+        Ok(())
+    }
+
+    pub fn push_container(&mut self, c: Container) -> Result<(), (Container, ObjectTreeErrors)> {
+        if self.has_container(&c.id) {
+            return Err((c, ObjectTreeErrors::IDAlreadyExists));
+        }
+
+        self.containers.push(c);
+
+        Ok(())
+    }
+
+    pub fn push_input(&mut self, i: Text) -> Result<(), (Text, ObjectTreeErrors)> {
+        if !self.has_container(&[i.id[0], i.id[1]]) || self.has_input(&i.id) || i.id[2] % 2 != 0 {
+            return Err((i, ObjectTreeErrors::BadID));
+        }
+
+        self.container_ref_mut(&[i.id[0], i.id[1]])
+            .unwrap()
+            .items
+            .push(i);
+
+        Ok(())
+    }
+
+    pub fn push_nonedit(&mut self, ne: Text) -> Result<(), (Text, ObjectTreeErrors)> {
+        if !self.has_container(&[ne.id[0], ne.id[1]]) || self.has_input(&ne.id) || ne.id[2] % 2 == 0
+        {
+            return Err((ne, ObjectTreeErrors::BadID));
+        }
+
+        self.container_ref_mut(&[ne.id[0], ne.id[1]])
+            .unwrap()
+            .items
+            .push(ne);
 
         Ok(())
     }
@@ -386,10 +418,10 @@ impl Term {
     //     y0: u16,
     //     w: u16,
     //     h: u16,
-    // ) -> Result<[u8; 2], TreeErrors> {
+    // ) -> Result<[u8; 2], ObjectTreeErrors> {
     //     /// this should actually fail
     //     if !self.has_term(id) {
-    //         return Err(TreeErrors::ParentNotFound);
+    //         return Err(ObjectTreeErrors::ParentNotFound);
     //     }
     //
     //     let id = [id, self.assign_container_id(id)];
@@ -397,7 +429,7 @@ impl Term {
     //     let term = self.term_ref_mut(id[0]).unwrap();
     //
     //     if term.assign_valid_container_area(x0, y0, w, h).is_err() {
-    //         return Err(TreeErrors::BoundsNotRespected);
+    //         return Err(ObjectTreeErrors::BoundsNotRespected);
     //     }
     //
     //     term.containers.push(Container::new(id, x0, y0, w, h));
@@ -439,14 +471,14 @@ impl Term {
         h: u16,
         border: Border,
         padding: Padding,
-    ) -> Result<(), TreeErrors> {
+    ) -> Result<(), ObjectTreeErrors> {
         if id.len() > 3
             || id[2] % 2 != 0
             || !self.has_container(&[id[0], id[1]])
             || self.has_input(&[id[0], id[1], id[2]])
         {
-            eprintln!("bad id");
-            return Err(TreeErrors::BadID);
+            eprintln!("bad id: {:?}", id);
+            return Err(ObjectTreeErrors::BadID);
         }
 
         let [ax0, ay0] = self.calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding);
@@ -469,7 +501,7 @@ impl Term {
         );
 
         if cont.assign_valid_text_area(&input).is_err() {
-            return Err(TreeErrors::BoundsNotRespected);
+            return Err(ObjectTreeErrors::BoundsNotRespected);
         }
 
         cont.items.push(input);
@@ -480,15 +512,15 @@ impl Term {
     /// takes only term and container ids and automatically assigns an id for the input
     /// returns the full new input id
     /// DONT USE FOR NOW
-    // pub fn input_auto(&mut self, id: &[u8]) -> Result<[u8; 3], TreeErrors> {
+    // pub fn input_auto(&mut self, id: &[u8]) -> Result<[u8; 3], ObjectTreeErrors> {
     //     if id.len() > 2 {
     //         eprintln!("use self.input(id) instead");
-    //         return Err(TreeErrors::BadID);
+    //         return Err(ObjectTreeErrors::BadID);
     //     }
     //
     //     if !self.has_container(&[id[0], id[1]]) {
     //         eprintln!("bad id");
-    //         return Err(TreeErrors::ParentNotFound);
+    //         return Err(ObjectTreeErrors::ParentNotFound);
     //     }
     //
     //     let id = [id[0], id[1], self.assign_input_id(id[0], id[1])];
@@ -512,14 +544,14 @@ impl Term {
         interactable: bool,
         border: Border,
         padding: Padding,
-    ) -> Result<(), TreeErrors> {
+    ) -> Result<(), ObjectTreeErrors> {
         if id.len() > 3
             || id[2] % 2 == 0
             || !self.has_container(&[id[0], id[1]])
             || self.has_nonedit(&[id[0], id[1], id[2]])
         {
             eprintln!("bad id");
-            return Err(TreeErrors::BadID);
+            return Err(ObjectTreeErrors::BadID);
         }
 
         if value.len() as u16 > w * h {
@@ -528,7 +560,7 @@ impl Term {
                 value.len(),
                 w * h
             );
-            return Err(TreeErrors::BadValue);
+            return Err(ObjectTreeErrors::BadValue);
         }
 
         let [ax0, ay0] = self.calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding);
@@ -551,7 +583,7 @@ impl Term {
         );
 
         if cont.assign_valid_text_area(&nonedit).is_err() {
-            return Err(TreeErrors::BoundsNotRespected);
+            return Err(ObjectTreeErrors::BoundsNotRespected);
         }
 
         cont.items.push(nonedit);
@@ -561,15 +593,15 @@ impl Term {
 
     /// takes only term and container ids and automatically assigns an id for the nonedit
     /// returns the full new nonedit id
-    // pub fn nonedit_auto(&mut self, id: &[u8]) -> Result<[u8; 3], TreeErrors> {
+    // pub fn nonedit_auto(&mut self, id: &[u8]) -> Result<[u8; 3], ObjectTreeErrors> {
     //     if id.len() > 2 {
     //         eprintln!("use self.nonedit(id) instead");
-    //         return Err(TreeErrors::BadID);
+    //         return Err(ObjectTreeErrors::BadID);
     //     }
     //
     //     if !self.has_container(&[id[0], id[1]]) {
     //         eprintln!("bad id");
-    //         return Err(TreeErrors::ParentNotFound);
+    //         return Err(ObjectTreeErrors::ParentNotFound);
     //     }
     //
     //     let id = [id[0], id[1], self.assign_nonedit_id(id[0], id[1])];
@@ -584,12 +616,12 @@ impl Term {
 
     /// returns a result of the active text object id
     /// or an error if it doesn't exist
-    pub fn active(&self) -> Result<[u16; 2], TreeErrors> {
+    pub fn active(&self) -> Result<[u16; 2], ObjectTreeErrors> {
         // if self.active.is_none() {
-        //     return Err(TreeErrors::BadID);
+        //     return Err(ObjectTreeErrors::BadID);
         // }
 
-        let id = self.active.unwrap_or(return Err(TreeErrors::BadID));
+        let id = self.active.unwrap_or(return Err(ObjectTreeErrors::BadID));
 
         match id[2] % 2 == 0 {
             true => {
@@ -814,17 +846,17 @@ impl Container {
 
     /// add new permit to the permit registry of this container
     pub fn permit<P>(&mut self) {
-        self.registry.insert(type_name::<P>());
+        self.registry.insert(parse_permit(type_name::<P>()));
     }
 
     /// removes a permit from the registry of this container
     pub fn revoke<P>(&mut self) -> bool {
-        self.registry.remove(type_name::<P>())
+        self.registry.remove(parse_permit(type_name::<P>()))
     }
 
     /// checks whether this container's permit registry has the provided permit
     pub fn has_permit<P>(&self) -> bool {
-        self.registry.contains(type_name::<P>())
+        self.registry.contains(parse_permit(type_name::<P>()))
     }
 
     // called on auto and base input/nonedit initializers
@@ -856,7 +888,8 @@ impl Container {
 
         self.items.iter().for_each(|t| {
             if e == 0 {
-                let [right, left, top, bottom] = area_conflicts(x0, y0, w, h, t.x0, t.y0, t.w, t.h);
+                let [top, right, bottom, left] =
+                    area_conflicts(x0, y0, text.w, text.h, t.x0, t.y0, t.w, t.h);
                 // conflict case
                 if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
                     // TODO: actually handle overlay logic
@@ -975,17 +1008,17 @@ impl Text {
 
     /// add new permit to the permit registry of this container
     pub fn permit<P>(&mut self) {
-        self.registry.insert(type_name::<P>());
+        self.registry.insert(parse_permit(type_name::<P>()));
     }
 
     /// removes a permit from the registry of this container
     pub fn revoke<P>(&mut self) -> bool {
-        self.registry.remove(type_name::<P>())
+        self.registry.remove(parse_permit(type_name::<P>()))
     }
 
     /// checks whether this container's permit registry has the provided permit
     pub fn has_permit<P>(&self) -> bool {
-        self.registry.contains(type_name::<P>())
+        self.registry.contains(parse_permit(type_name::<P>()))
     }
 }
 
@@ -1004,3 +1037,159 @@ mod tests1 {
         println!("we are now inside raw mode");
     }
 }
+
+#[cfg(test)]
+mod object_tree {
+    use super::{ObjectTree, ObjectTreeErrors, Term};
+
+    #[test]
+    fn active() {
+        let mut tree = ObjectTree::new();
+        assert!(tree.term(0).is_err());
+        assert_eq!(tree.terms.len(), 1);
+
+        tree.term(7);
+
+        assert_eq!(tree.terms.len(), 2);
+
+        assert_eq!(tree.active(), 0);
+        tree.make_active(3);
+        assert_eq!(tree.active(), 0);
+        tree.make_active(7);
+        assert_eq!(tree.active(), 7);
+    }
+
+    #[test]
+    fn assign() {
+        let mut tree = ObjectTree::new();
+        tree.term_auto();
+        assert!(tree.has_term(0));
+        let term: &Term = tree.term_ref(0).unwrap();
+        let term: &mut Term = tree.term_ref_mut(0).unwrap();
+        assert!(tree.term_ref(78).is_none());
+        tree.term(1);
+        tree.term(2);
+        tree.term(4);
+        assert_eq!(tree.assign_term_id(), 3);
+    }
+}
+
+#[cfg(test)]
+mod term {
+    use super::{Container, Term, Text};
+
+    #[test]
+    fn registry() {
+        let mut term = Term::new(7);
+
+        struct A1;
+        struct Core;
+        assert_eq!(term.registry.len(), 1);
+
+        term.permit::<A1>();
+        assert!(term.has_permit::<A1>());
+
+        term.revoke::<A1>();
+        assert!(!term.has_permit::<A1>());
+        assert!(term.has_permit::<Core>());
+    }
+
+    #[test]
+    fn area() {
+        let mut term = Term::new(5);
+        let mut c1 = Container::default();
+        c1.w = 24;
+        c1.h = 32;
+        c1.x0 = 2;
+        c1.y0 = 5;
+        assert!(term.assign_valid_container_area(&c1).is_ok());
+        c1.w = 8354;
+        c1.h = 3;
+        c1.x0 = 2;
+        c1.y0 = 5;
+        assert!(term.assign_valid_container_area(&c1).is_err());
+        c1.w = 4;
+        c1.h = 8324;
+        c1.x0 = 2;
+        c1.y0 = 5;
+        assert!(term.assign_valid_container_area(&c1).is_err());
+        c1.w = 4;
+        c1.h = 3;
+        c1.x0 = 8355;
+        c1.y0 = 5;
+        assert!(term.assign_valid_container_area(&c1).is_err());
+        c1.w = 4;
+        c1.h = 3;
+        c1.x0 = 2;
+        c1.y0 = 8653;
+        assert!(term.assign_valid_container_area(&c1).is_err());
+    }
+
+    #[test]
+    fn active() {
+        let mut term = Term::new(5);
+        let mut c = Container::default();
+        c.id = [5, 1];
+        let mut ne = Text::default();
+        ne.id = [5, 1, 3];
+        ne.change = 1;
+
+        let id = ne.id;
+
+        term.push_container(c);
+        term.push_nonedit(ne);
+
+        let res = term.make_active(&[5, 1, 8]);
+        assert!(res.is_err());
+
+        let res = term.make_active(&id);
+        assert!(res.is_ok());
+        assert_eq!(term.active.unwrap(), id);
+    }
+
+    use crate::space::{Border, Padding};
+
+    #[test]
+    fn cursor() {
+        let mut term = Term::new(5);
+        _ = term.container(&[0, 0], 56, 15, 35, 8, Border::None, Padding::None);
+        _ = term.input(&[0, 0, 0], "", 1, 1, 23, 2, Border::None, Padding::None);
+
+        let res = term.make_active(&[0, 0, 0]);
+        assert_eq!([term.cx, term.cy], [56 + 1 + 1, 15 + 1]);
+    }
+
+    #[test]
+    fn interactables() {
+        let mut term = Term::new(0);
+        _ = term.container(&[0, 0], 56, 15, 35, 18, Border::None, Padding::None);
+        _ = term.input(&[0, 0, 0], "", 1, 1, 2, 2, Border::None, Padding::None);
+        let res = term.input(&[0, 0, 2], "", 5, 5, 2, 2, Border::None, Padding::None);
+        println!("{:?}", res);
+        let res = term.nonedit(
+            &[0, 0, 1],
+            12,
+            12,
+            2,
+            2,
+            &[],
+            true,
+            Border::None,
+            Padding::None,
+        );
+        println!("{:?}", res);
+
+        let inters = term.interactables();
+        assert_eq!(inters.len(), 3);
+
+        term.make_active(&[0, 0, 1]);
+        assert_eq!(term.interactable_next(), Some([0, 0, 0]));
+        assert_eq!(term.interactable_prev(), Some([0, 0, 2]));
+    }
+}
+
+#[cfg(test)]
+mod container {}
+
+#[cfg(test)]
+mod text {}

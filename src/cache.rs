@@ -63,12 +63,17 @@ impl Term {
         let f = std::fs::OpenOptions::new()
             .write(true)
             .read(true)
-            .open(format!("cache/input/{}.json", key))
-            .ok();
+            .open(format!("cache/input/{}.json", key));
+
+        // BUG???: unwrap_or should unwrap if some or return None and exit the entire method if
+        // none
+        // instead it jumps to returning None even when f is actually Some(File)
+        let mut f = match f {
+            Ok(f) => f,
+            Err(e) => return None,
+        };
 
         let mut cache = String::new();
-        let mut f = f.unwrap_or(return None);
-
         f.read_to_string(&mut cache).unwrap();
 
         let cache = cache
@@ -240,9 +245,7 @@ impl Text {
 // }
 
 #[cfg(test)]
-mod test_input {
-    use std::collections::HashMap;
-
+mod json {
     #[test]
     fn serialize() {
         let value = &[
@@ -280,34 +283,134 @@ mod test_input {
 
         assert_eq!(value, &super::deserialize_input(&seria));
     }
+}
+
+#[cfg(test)]
+mod input_cache {
+    use std::path::Path;
+
+    use super::Term;
 
     #[test]
     fn cache() {
-        let mut cache = HashMap::from([("input", vec![String::from("abc"), "123".to_string()])]);
-        if cache.contains_key("input") {
-            cache.get_mut("input").unwrap().push("def".to_string());
-        }
+        let mut term = Term::new(0);
 
-        assert_eq!(
-            cache.get("input"),
-            Some(&vec![
-                String::from("abc"),
-                "123".to_string(),
-                String::from("def")
-            ])
-        );
+        let cache = vec![
+            vec![Some('f'), None, Some('o')],
+            vec![Some('b'), None, None, Some('a')],
+            vec![Some('b'), Some('a'), None, Some('z')],
+        ];
 
-        let mut cache = HashMap::new();
-        if !cache.contains_key("input") {
-            cache.insert("input", vec!["098".to_string()]);
-        }
+        cache
+            .iter()
+            .for_each(|c| term.cache_input("inputtest", c.clone()));
 
-        assert_eq!(cache.get("input"), Some(&vec!["098".to_string()]));
+        assert!(term.cache.contains_key("inputtest"));
+        assert_eq!(&cache, term.cache.get("inputtest").unwrap());
+    }
+
+    // NOTE: this test works if ran alone
+    // but if ran together with the others in this file it fails the first time then keeps passing
+    // after that
+    #[test]
+    fn load() {
+        let mut term = Term::new(0);
+
+        let cache = vec![
+            vec![Some('f'), None, Some('o')],
+            vec![Some('b'), None, None, Some('a')],
+            vec![Some('b'), Some('a'), None, Some('z')],
+        ];
+
+        cache
+            .iter()
+            .for_each(|c| term.cache_input("inputtest", c.clone()));
+
+        term.save_input("inputtest", None);
+
+        term.cache.get_mut("inputtest").unwrap().clear();
+
+        let cache_file = term.load_input("inputtest");
+
+        assert_eq!(&cache, term.cache.get("inputtest").unwrap());
+    }
+
+    // NOTE: this test fails arbitrarily too
+    #[test]
+    fn save() {
+        std::fs::remove_file("cache/input/inputtest.json").unwrap_or(());
+
+        let mut term = Term::new(0);
+
+        let cache = vec![
+            vec![Some('f'), None, Some('o')],
+            vec![Some('b'), None, None, Some('a')],
+            vec![Some('b'), Some('a'), None, Some('z')],
+        ];
+
+        cache
+            .iter()
+            .for_each(|c| term.cache_input("inputtest", c.clone()));
+
+        let cache_file = term.load_input("inputtest");
+
+        assert!(cache_file.is_none());
+
+        term.save_input("inputtest", cache_file);
+
+        assert!(Path::new("cache/input").is_dir());
+        assert!(Path::new("cache/input/inputtest.json").is_file());
+    }
+}
+
+#[cfg(test)]
+mod text_history {
+    use super::{Term, Text};
+
+    #[test]
+    fn history_up() {
+        let mut text = Text::default();
+        text.name = "inputtest".to_string();
+        text.w = 5;
+        text.h = 1;
+        text.value.resize((text.w * text.h) as usize, None);
+
+        let cache = vec![
+            vec![Some('f'), None, Some('o')],
+            vec![Some('b'), None, None, Some('a')],
+            vec![Some('b'), Some('a'), None, Some('z')],
+        ];
+
+        text.history_up(&cache);
+
+        assert_eq!(text.value[..4], cache[2]);
     }
 
     #[test]
-    fn save() {}
+    fn history_down() {
+        let mut text = Text::default();
+        text.name = "inputtest".to_string();
+        text.w = 5;
+        text.h = 1;
+        text.value.resize((text.w * text.h) as usize, None);
+        text.hicu = 3;
 
-    #[test]
-    fn load() {}
+        let cache = vec![
+            vec![Some('f'), None, Some('o')],
+            vec![Some('b'), None, None, Some('a')],
+            vec![Some('b'), Some('a'), None, Some('z')],
+        ];
+
+        text.history_down(&cache);
+        assert_eq!(&text.value[..4], &cache[1]);
+
+        let temp = vec![Some('!'), Some('@'), Some('#'), Some('$'), Some('%')];
+        text.temp = temp.clone();
+
+        text.hicu = 1;
+        text.history_down(&cache);
+
+        assert!(text.temp.is_empty());
+        assert_eq!(text.value, temp);
+    }
 }

@@ -2,7 +2,6 @@ use crate::events::{Events, EventsConclusion, EventsTrigger};
 use crate::input::keyboard::{Char, KbdEvent, Modifiers, CC};
 use crate::object_tree::{Term, Text};
 use crate::raw_mode::termios;
-use crate::space::SpaceAwareness;
 
 pub struct WindowResized(u16, u16);
 
@@ -116,7 +115,7 @@ impl<'a> Events<InteractiveSwitch, Interactive, (&'a KbdEvent, &'a mut StdoutLoc
         };
 
         if id.is_some() {
-            self.make_active(id.unwrap(), writer);
+            self.make_active(&id.unwrap());
         }
     }
 }
@@ -130,15 +129,26 @@ impl<'a> Events<BasicInput, CoreEvents, (&'a KbdEvent, &'a mut StdoutLock<'stati
         let (input, writer, ts) = (values.0, values.1, values.2);
         match (&input.char, &input.modifiers) {
             (Char::Char('c'), Modifiers(2)) => {
+                // save all input objects cache
+                self.cache
+                    .iter()
+                    .for_each(|(k, _)| self.save_input(k, None));
+
+                // go back to cooked mode using the cached termios instance
                 crate::raw_mode::cooked_mode(&ts);
+                // exit alternate screen back to the default terminal screen
                 crate::leave_alternate_screen(writer);
 
+                // exit the program
                 std::process::exit(0);
             }
             (Char::Char('l'), Modifiers(2)) => {
+                // clear terminal display
                 self.clear(writer);
+                // render terminal buffer
                 self.render(writer)
             }
+            // other key events are irrelevant to this Events implementation
             _ => {}
         }
     }

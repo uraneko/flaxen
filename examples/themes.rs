@@ -1,6 +1,6 @@
 use events::*;
 use ragout::*;
-use ragout::{decode_ki_kai, read_ki, Char, KbdEvent, Modifiers};
+use ragout::{decode_ki_kai, read_ki};
 use space::{Border, Padding};
 
 use std::io::Write;
@@ -15,20 +15,6 @@ fn main() {
         35,
         8,
         Border::Uniform('#'),
-        Padding::Inner {
-            top: 1,
-            bottom: 1,
-            right: 1,
-            left: 1,
-        },
-    );
-    _ = term.container(
-        &[0, 1],
-        56,
-        15,
-        35,
-        8,
-        Border::Uniform('+'),
         Padding::Inner {
             top: 1,
             bottom: 1,
@@ -51,6 +37,21 @@ fn main() {
             left: 2,
         },
     );
+    _ = term.container(
+        &[0, 1],
+        55,
+        15,
+        35,
+        8,
+        Border::Uniform('+'),
+        Padding::Inner {
+            top: 1,
+            bottom: 1,
+            right: 1,
+            left: 1,
+        },
+    );
+
     _ = term.input(
         &[0, 1, 0],
         "",
@@ -67,6 +68,32 @@ fn main() {
         },
     );
 
+    _ = term.container(
+        &[0, 3],
+        123,
+        26,
+        39,
+        4,
+        Border::Uniform('`'),
+        Padding::Inner {
+            top: 1,
+            bottom: 1,
+            right: 1,
+            left: 1,
+        },
+    );
+
+    _ = term.input(
+        &[0, 3, 4],
+        "test1",
+        0,
+        0,
+        39,
+        1,
+        Border::None,
+        Padding::None,
+    );
+
     let style1 = themes::Style::new().bold().underline().txt(&[180, 59, 90]);
 
     let mut writer = std::io::stdout().lock();
@@ -78,7 +105,8 @@ fn main() {
 
     term.clear(&mut writer);
     term.render(&mut writer);
-    _ = term.make_active([0, 0, 0], &mut writer);
+    _ = term.make_active(&[0, 0, 0]);
+    term.render_cursor(&mut writer);
     _ = writer.flush();
 
     let mut i = vec![];
@@ -126,7 +154,8 @@ fn main() {
 
         // term.reset_changed();
 
-        _ = term.sync_cursor(&mut writer);
+        _ = term.sync_cursor();
+        term.render_cursor(&mut writer);
         _ = writer.flush();
     }
 

@@ -9,24 +9,46 @@ use std::{
     },
 };
 
+// FIXME: this is partially wrong but the wrong part is needed for the overlay only
+// fix this before making the overlay
 // top, right, bottom, left
 // a is the new object
 // b is the pre existing one
 pub fn area_conflicts(
-    ax0: u16,
-    ay0: u16,
-    aw: u16,
-    ah: u16,
-    bx0: u16,
-    by0: u16,
-    bw: u16,
-    bh: u16,
+    newx0: u16,
+    newy0: u16,
+    neww: u16,
+    newh: u16,
+    oldx0: u16,
+    oldy0: u16,
+    oldw: u16,
+    oldh: u16,
 ) -> [i16; 4] {
+    //     println!(
+    //         "
+    //         top = ({newy0} + {newh})  - {oldy0} = {},
+    //         right = {newx0}  - ({oldx0} + {oldw}) = {},
+    //         bottom = {newy0}  - ({oldy0} + {oldh}) = {},
+    //         left = ({newx0} + {neww})  - {oldx0} = {},
+    // ",
+    //         (newy0 + newh) as i16 - oldy0 as i16,
+    //         newx0 as i16 - (oldx0 + oldw) as i16,
+    //         newy0 as i16 - (oldy0 + oldh) as i16,
+    //         (newx0 + neww) as i16 - oldx0 as i16,
+    //     );
     [
-        by0 as i16 - ay0 as i16 + ah as i16, // bottom,  if > 0 then no conflict
-        by0 as i16 + bh as i16 - ay0 as i16, // top,    if < 0 then no conflict
-        bx0 as i16 - ax0 as i16 + aw as i16, // right, if > 0 then no conflict
-        bx0 as i16 + bw as i16 - ax0 as i16, // left, if < 0 then no conflic
+        // the new object is to the top of the old one
+        // < 0 means the new area is valid
+        if newy0 > oldy0 { -1 } else { 1 } * (newy0 + newh) as i16 - oldy0 as i16,
+        // the new object is to the right of the old one
+        // > 0 means the new area is valid
+        if newx0 > oldx0 { 1 } else { -1 } * newx0 as i16 - (oldx0 + oldw) as i16,
+        // the new area is to the bottom of the old one
+        // > 0 means the new area is valid
+        if newy0 > oldy0 { 1 } else { -1 } * newy0 as i16 - (oldy0 + oldh) as i16,
+        // the new object is to the left of the old one
+        // < 0 means the new area is valid
+        if newx0 > oldx0 { -1 } else { 1 } * (newx0 + neww) as i16 - oldx0 as i16,
     ]
 }
 
@@ -131,16 +153,4 @@ impl Text {
             }),
         }
     }
-}
-
-// NOTE: window resizing is polled at every frame redraw
-// logic for when the window is resized:
-// first the resize is detected by a buffer image events
-// then the buffer tells the commissioner
-// the commissioner in turn tells every component and its items in the buffer
-// then he rescales their rendered data to the new window scale and dimensions
-// then the buffer updates its buf with the new stuff and updates its global cursor
-pub trait SpaceAwareness {
-    // responds to window resize events
-    fn rescale(&mut self, wdiff: u16, hdiff: u16);
 }

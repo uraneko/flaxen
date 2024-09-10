@@ -58,8 +58,10 @@ impl Text {
 
     pub fn home(&mut self) {
         self.cx = 0;
+    }
 
-        self.border = crate::space::Border::Uniform('!');
+    pub fn end(&mut self) {
+        self.cx = self.w - 1;
     }
 
     pub fn homev(&mut self) {
@@ -71,12 +73,6 @@ impl Text {
     }
 
     // BUG: unicode characters take more space than one cell
-
-    pub fn end(&mut self) {
-        self.cx = self.w - 1;
-
-        self.border = crate::space::Border::Uniform('+');
-    }
 
     // put char if the input cursor points to non-empty (Some(c)) value in the value vec
     pub fn put_char(&mut self, c: char) {
@@ -114,160 +110,162 @@ impl Text {
 }
 
 #[cfg(test)]
-mod test_input {
+mod input {
     use super::Text;
 
     #[test]
-    fn test_put_char() {
+    fn submit() {
         let mut i = Text::default();
+        i.w = 5;
+        i.h = 1;
+        i.value.resize((i.w * i.h) as usize, None);
 
-        let mut idx = 0;
-        ['p', 'i', 'k', 'a'].into_iter().for_each(|c| {
-            i.put_char(c);
-            idx += 1;
+        i.value[0] = Some('f');
+        i.value[1] = Some('o');
+        i.value[2] = Some('o');
 
-            assert_eq!(i.value[(i.cx - 1) as usize], Some(c));
-            assert_eq!(idx, i.cx);
-        })
+        let res = i.submit();
+
+        assert!(i.value.iter().all(|c| c.is_none()));
+        assert_eq!(res, vec![Some('f'), Some('o'), Some('o'), None, None,]);
     }
 
     #[test]
-    fn test_backspace() {
+    fn left() {
         let mut i = Text::default();
+        i.w = 5;
+        i.h = 2;
+        i.value.resize((i.w * i.h) as usize, None);
 
-        let input = "pikatchino";
-        input.chars().into_iter().for_each(|c| i.put_char(c));
+        i.value[0] = Some('f');
+        i.value[1] = Some('o');
+        i.value[2] = Some('o');
 
-        i.delete();
+        assert_eq!(i.cx, 0);
+        assert_eq!(i.cy, 0);
 
-        assert!({ i.cx as usize == input.len() - 1 && i.value[(i.cx - 1) as usize] == Some('n') });
-    }
-
-    #[test]
-    fn test_to_end() {
-        let mut i = Text::default();
-
-        "pikatchaa".chars().into_iter().for_each(|c| i.put_char(c));
-        // cursor is by default at end, but we still move it to end
-        i.end();
-
-        assert!({ i.cx == 9 && i.value[(i.cx - 1) as usize] == Some('a') });
-
-        // now we test moving to end from somewhere else
-        i.left();
-        i.left();
-        i.end();
-
-        assert!({ i.cx == 9 && i.value[(i.cx - 1) as usize] == Some('a') });
-
-        // and finally, moving to end from home (first cell in line)
-        i.home();
-        i.end();
-
-        assert!({ i.cx == 9 && i.value[(i.cx - 1) as usize] == Some('a') });
-    }
-
-    #[test]
-    fn test_to_home() {
-        let mut i = Text::default();
-
-        "pikatchuu".chars().into_iter().for_each(|c| i.put_char(c));
-        i.home();
-
-        assert!({ i.cx == 0 && i.value[(i.cx) as usize] == Some('p') });
-    }
-
-    #[test]
-    fn test_to_the_right() {
-        let mut i = Text::default();
-
-        "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
-        i.left();
         i.left();
 
-        assert_eq!(i.value[(i.cx - 1) as usize], Some('h'));
-        assert_eq!(i.cx as usize, "pikatchau".len() - 2);
+        assert_eq!(i.cx, 0);
+        assert_eq!(i.cy, 0);
+
+        i.cy = 1;
+
+        i.left();
+
+        assert_eq!(i.cx, i.w - 1);
+        assert_eq!(i.cy, 0);
     }
 
-    #[test]
-    fn test_to_the_left() {
-        let mut i = Text::default();
+    // TODO: copy paste capabilities
+    // TODO: render border polyform and borderless
 
-        "pikatchau".chars().into_iter().for_each(|c| i.put_char(c));
-        i.home();
-        i.right();
+    #[test]
+    fn right() {
+        let mut i = Text::default();
+        i.w = 5;
+        i.h = 2;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cx = i.w - 1;
+        i.cy = i.h - 1;
+
+        i.value[0] = Some('f');
+        i.value[1] = Some('o');
+        i.value[2] = Some('o');
+
         i.right();
 
-        assert_eq!(i.value[(i.cx) as usize], Some('k'));
-        assert_eq!(i.cx, 2);
+        assert_eq!(i.cx, i.w - 1);
+        assert_eq!(i.cy, i.h - 1);
+
+        i.cy = 0;
+
+        i.right();
+
+        assert_eq!(i.cx, 0);
+        assert_eq!(i.cy, 1);
     }
 
     #[test]
-    fn test_cr_lf() {
+    fn up() {
         let mut i = Text::default();
-        let mut user_input = String::new();
+        i.w = 3;
+        i.h = 4;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cy = 3;
 
-        "pikatcharu".chars().into_iter().for_each(|c| i.put_char(c));
+        i.up();
+        assert_eq!(i.cy, 2);
+        i.up();
+        i.up();
+        assert_eq!(i.cy, 0);
+        i.up();
+        assert_eq!(i.cy, 0);
+    }
 
-        i.submit();
+    #[test]
+    fn down() {
+        let mut i = Text::default();
+        i.w = 3;
+        i.h = 4;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cy = 0;
 
-        // assert_eq!(
-        // i.temp,
-        //     "pikatcharu".chars().into_iter().collect::<Vec<char>>()
-        // );
-        assert!(i.value.is_empty());
+        i.down();
+        assert_eq!(i.cy, 1);
+        i.down();
+        i.down();
+        assert_eq!(i.cy, 3);
+        i.down();
+        assert_eq!(i.cy, 3);
+    }
+
+    #[test]
+    fn home() {
+        let mut i = Text::default();
+        i.w = 6;
+        i.h = 1;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cx = 3;
+
+        i.home();
         assert_eq!(i.cx, 0);
     }
 
     #[test]
-    fn test_clear_line() {
+    fn end() {
         let mut i = Text::default();
+        i.w = 6;
+        i.h = 1;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cx = 4;
 
-        "pikauchi".chars().into_iter().for_each(|c| i.put_char(c));
-
-        assert!({ i.cx as usize == "pikauchi".len() && i.value[(i.cx - 1) as usize] == Some('i') });
-
-        // i.clear_line();
-        assert!(i.value.is_empty());
-        assert_eq!(i.cx, 0);
+        i.end();
+        assert_eq!(i.cx, i.w - 1);
     }
 
     #[test]
-    fn test_clear_right() {
+    fn homev() {
         let mut i = Text::default();
+        i.w = 5;
+        i.h = 4;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cy = 2;
 
-        "pikatchiatto"
-            .chars()
-            .into_iter()
-            .for_each(|c| i.put_char(c));
-        (0..4).for_each(|_| {
-            i.left();
-        });
-
-        // i.clear_right();
-        assert_eq!(
-            i.value.iter().map(|c| c.unwrap()).collect::<String>(),
-            "pikatchi"
-        );
+        i.homev();
+        assert_eq!(i.cy, 0);
     }
 
     #[test]
-    fn test_clear_left() {
+    fn endv() {
         let mut i = Text::default();
+        i.w = 5;
+        i.h = 4;
+        i.value.resize((i.w * i.h) as usize, None);
+        i.cy = 1;
 
-        "pikatchiatto"
-            .chars()
-            .into_iter()
-            .for_each(|c| i.put_char(c));
-        (0..4).for_each(|_| {
-            i.left();
-        });
-
-        // i.clear_left();
-        assert_eq!(
-            i.value.iter().map(|c| c.unwrap()).collect::<String>(),
-            "atto"
-        );
+        i.endv();
+        assert_eq!(i.cy, i.h - 1);
     }
 }
 
