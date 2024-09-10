@@ -14,7 +14,14 @@ fn main() {
         3,
         35,
         8,
-        Border::Uniform('#'),
+        Border::Polyform {
+            tlcorner: '╔',
+            trcorner: '╗',
+            blcorner: '╚',
+            brcorner: '╝',
+            rl: '║',
+            tb: '═',
+        },
         Padding::Inner {
             top: 1,
             bottom: 1,
@@ -29,7 +36,14 @@ fn main() {
         1,
         23,
         2,
-        Border::Uniform(':'),
+        Border::Polyform {
+            tlcorner: '╭',
+            trcorner: '╮',
+            blcorner: '╰',
+            brcorner: '╯',
+            rl: '│',
+            tb: '─',
+        },
         Padding::Inner {
             top: 0,
             bottom: 0,
@@ -68,20 +82,7 @@ fn main() {
         },
     );
 
-    _ = term.container(
-        &[0, 3],
-        123,
-        26,
-        39,
-        4,
-        Border::Uniform('`'),
-        Padding::Inner {
-            top: 1,
-            bottom: 1,
-            right: 1,
-            left: 1,
-        },
-    );
+    _ = term.container(&[0, 3], 123, 26, 39, 4, Border::Uniform('`'), Padding::None);
 
     _ = term.input(
         &[0, 3, 4],
@@ -89,7 +90,7 @@ fn main() {
         0,
         0,
         39,
-        1,
+        4,
         Border::None,
         Padding::None,
     );

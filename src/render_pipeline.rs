@@ -296,19 +296,21 @@ impl Container {
             }
 
             Border::Polyform {
-                rcorner,
-                lcorner,
-                tcorner,
-                bcorner,
+                trcorner,
+                tlcorner,
+                brcorner,
+                blcorner,
                 rl,
                 tb,
-            } => {}
+            } => self.process_polyform(
+                trcorner, tlcorner, blcorner, brcorner, tb, rl, lines, wx, hx, por, pol, pot, pob,
+                pir, pil, pit, pib,
+            ),
         }
     }
 
     fn process_none(
         &self,
-        c: char,
         lines: &mut Vec<Option<char>>,
         wx: u16,
         hx: u16,
@@ -321,6 +323,25 @@ impl Container {
         pit: u16,
         pib: u16,
     ) {
+        // first line of border
+        // lines of outer top padding times number of cells in one line
+        let mut idx = (pot + pit) * wx;
+        let mut line = pot + pit;
+
+        // handle the value lines
+        // every iteration is a line
+        while line < pot + pit + self.h {
+            // skip inner left and right padding and the value width
+            idx += pol + pil + self.w + pir + por;
+
+            line += 1;
+            // we have finished the value lines
+        }
+
+        // pass the bottom paddings
+        idx += (pob + pib) * wx;
+
+        assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
     }
 
     fn process_uniform(
@@ -338,63 +359,66 @@ impl Container {
         pit: u16,
         pib: u16,
     ) {
-        {
-            // first line of border
-            // lines of padding times number of cells in one line
-            let mut idx = pot * wx;
-            let mut line = pot;
-            // we skip the outer left padding values
-            idx += pol;
-            // we fill value length + inner padding right + left with border value
-            for i in 0..pil + 1 + self.w + pir + 1 {
-                lines[idx as usize] = Some(c);
-                idx += 1;
-            }
-            // we skipp the outer right padding
-            idx += por;
-            // first bordered line ends
-            line += 1;
-
-            // handle the pre value lines
-            // every iteration is a line
-
-            while line < pot + 1 + pit + self.h + pib {
-                // new line we skip padding outer left
-                idx += pol;
-                // border cell
-                lines[idx as usize] = Some(c);
-                idx += 1;
-                // skip inner left and right padding and the value width
-                idx += pil + self.w + pir;
-                // border cell
-                lines[idx as usize] = Some(c);
-                idx += 1;
-                // skipp outer right padding
-                idx += por;
-
-                line += 1;
-                // we are in front of the second full border line
-            }
-
-            // second and last line of full border
-            // we skip the outer left padding values
-            idx += pol;
-            // we fill value length + inner padding right + left with border value
-            for i in 0..pil + 1 + self.w + pir + 1 {
-                lines[idx as usize] = Some(c);
-                idx += 1;
-            }
-            // we skip the outer right padding
-            idx += por;
-            // second bordered line ends
-            line += 1;
-            assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
+        // first line of border
+        // lines of padding times number of cells in one line
+        let mut idx = pot * wx;
+        let mut line = pot;
+        // we skip the outer left padding values
+        idx += pol;
+        // we fill value length + inner padding right + left with border value
+        for i in 0..pil + 1 + self.w + pir + 1 {
+            lines[idx as usize] = Some(c);
+            idx += 1;
         }
+        // we skipp the outer right padding
+        idx += por;
+        // first bordered line ends
+        line += 1;
+
+        // handle the pre value lines
+        // every iteration is a line
+
+        while line < pot + 1 + pit + self.h + pib {
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell
+            lines[idx as usize] = Some(c);
+            idx += 1;
+            // skip inner left and right padding and the value width
+            idx += pil + self.w + pir;
+            // border cell
+            lines[idx as usize] = Some(c);
+            idx += 1;
+            // skipp outer right padding
+            idx += por;
+
+            line += 1;
+            // we are in front of the second full border line
+        }
+
+        // second and last line of full border
+        // we skip the outer left padding values
+        idx += pol;
+        // we fill value length + inner padding right + left with border value
+        for i in 0..pil + 1 + self.w + pir + 1 {
+            lines[idx as usize] = Some(c);
+            idx += 1;
+        }
+        // we skip the outer right padding
+        idx += por;
+        // second bordered line ends
+        line += 1;
+        assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
     }
 
     fn process_polyform(
         &self,
-        c: char,
+        trcorner: char,
+        tlcorner: char,
+        blcorner: char,
+        brcorner: char,
+        btb: char,
+        blr: char,
         lines: &mut Vec<Option<char>>,
         wx: u16,
         hx: u16,
@@ -407,6 +431,73 @@ impl Container {
         pit: u16,
         pib: u16,
     ) {
+        // first line of border
+        // lines of padding times number of cells in one line
+        let mut idx = pot * wx;
+        let mut line = pot;
+        // we skip the outer left padding values
+        idx += pol;
+
+        // we write the top left corner
+        lines[idx as usize] = Some(tlcorner);
+        idx += 1;
+
+        // we fill value length + inner padding right + left with border top/bottom value,
+        // excluding the top corners
+        for i in 0..pil + self.w + pir {
+            lines[idx as usize] = Some(btb);
+            idx += 1;
+        }
+
+        // we write the top right corner
+        lines[idx as usize] = Some(trcorner);
+        idx += 1;
+
+        // we skipp the outer right padding
+        idx += por;
+        // first bordered line ends
+        line += 1;
+
+        // handle the pre value lines
+        // every iteration is a line
+
+        while line < pot + 1 + pit + self.h + pib {
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skip inner left and right padding and the value width
+            idx += pil + self.w + pir;
+            // border cell
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skipp outer right padding
+            idx += por;
+
+            line += 1;
+            // we are in front of the second full border line
+        }
+
+        // second and last line of full border
+        // we skip the outer left padding values
+        idx += pol;
+        // we write the border bottom left corner value
+        lines[idx as usize] = Some(blcorner);
+        idx += 1;
+        // we fill value length + inner padding right + left with border value
+        for i in 0..pil + self.w + pir {
+            lines[idx as usize] = Some(btb);
+            idx += 1;
+        }
+        // we write the border bottom right value
+        lines[idx as usize] = Some(brcorner);
+        idx += 1;
+        // we skip the outer right padding
+        idx += por;
+        // second bordered line ends
+        line += 1;
+        assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
     }
 }
 
@@ -557,13 +648,16 @@ impl Text {
             }
 
             Border::Polyform {
-                rcorner,
-                lcorner,
-                tcorner,
-                bcorner,
+                trcorner,
+                tlcorner,
+                brcorner,
+                blcorner,
                 rl,
                 tb,
-            } => {}
+            } => self.process_polyform(
+                trcorner, tlcorner, blcorner, brcorner, tb, rl, lines, wx, hx, por, pol, pot, pob,
+                pir, pil, pit, pib,
+            ),
         }
     }
 
@@ -737,7 +831,12 @@ impl Text {
 
     fn process_polyform(
         &self,
-        c: char,
+        trcorner: char,
+        tlcorner: char,
+        blcorner: char,
+        brcorner: char,
+        btb: char,
+        blr: char,
         lines: &mut Vec<Option<char>>,
         wx: u16,
         hx: u16,
@@ -750,6 +849,155 @@ impl Text {
         pit: u16,
         pib: u16,
     ) {
+        // the line the value starts on
+        let v0 = pot + 1 + pit;
+        // the line the value ends on
+        let v1 = v0 + self.h;
+        // println!("{}: v0 = {}, v1 = {}", line!(), v0, v1,);
+        // println!("{}: wextra = {}, hxtra = {}", line!(), wx, hx);
+
+        // first line of border
+        // lines of padding times number of cells in one line
+        let mut idx = pot * wx;
+        let mut line = pot;
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // we skip the outer left padding values
+        idx += pol;
+
+        // log_buf(&lines, wx, hx);
+
+        // we write the top left corner
+        lines[idx as usize] = Some(tlcorner);
+        idx += 1;
+
+        // we fill value length + inner padding right + left with border top/bottom value,
+        // excluding the top corners
+        for i in 0..pil + self.w + pir {
+            lines[idx as usize] = Some(btb);
+            idx += 1;
+        }
+
+        // we write the top right corner
+        lines[idx as usize] = Some(trcorner);
+        idx += 1;
+
+        // println!("lines ==> {:?}", lines);
+        // log_buf(&lines, wx, hx);
+        // we skipp the outer right padding
+        idx += por;
+        // first bordered line ends
+        line += 1;
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+
+        // handle the pre value lines
+        // every iteration is a line
+        // we are still not in front of the value lines
+        while line < v0 {
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell, write border left/right value
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skip inner left and right padding and the value len
+            idx += pil + self.w + pir;
+            // border cell, write border left/right value
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skip outer right padding
+            idx += por;
+
+            line += 1;
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // log_buf(&lines, wx, hx);
+        }
+
+        // handle the value lines
+        // every iteration is a line
+        // we are not out of the value lines yet
+        while line < v1 {
+            // println!("==>> line = {}", line);
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skip inner left padding
+            idx += pil;
+            // write values
+            for vi in 0..self.w as usize {
+                // println!(
+                //     "{}: vi{} + (w{} * (line{} - pot{} - 1 - pit{})) = {}",
+                //     line!(),
+                //     vi,
+                //     self.w,
+                //     line,
+                //     pot,
+                //     pit,
+                //     vi + (self.w * (line - pot - 1 - pit)) as usize
+                // );
+                let i = vi + (self.w * (line - pot - 1 - pit)) as usize;
+                if i < self.value.len() {
+                    lines[idx as usize] = self.value[i];
+                }
+                idx += 1;
+                // log_buf(&lines, wx, hx);
+            }
+            // skip inner right padding
+            idx += pir;
+            // border cell
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skip outer right padding
+            idx += por;
+
+            line += 1;
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // log_buf(&lines, wx, hx);
+        }
+        // we left value lines
+
+        // while we are not in front of the second full border line yet
+        while line < pot + 1 + pit + self.h + pib {
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skip inner left and right padding and the value width
+            idx += pil + self.w + pir;
+            // border cell
+            lines[idx as usize] = Some(blr);
+            idx += 1;
+            // skipp outer right padding
+            idx += por;
+
+            line += 1;
+        }
+
+        // second and last line of full border
+        // we skip the outer left padding values
+        idx += pol;
+        // we write the border bottom left corner value
+        lines[idx as usize] = Some(blcorner);
+        idx += 1;
+        // we fill value length + inner padding right + left with border value
+        for i in 0..pil + self.w + pir {
+            lines[idx as usize] = Some(btb);
+            idx += 1;
+        }
+        // we write the border bottom right value
+        lines[idx as usize] = Some(brcorner);
+        idx += 1;
+
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // log_buf(&lines, wx, hx);
+        // we skip the outer right padding
+        idx += por;
+        // second bordered line ends
+        line += 1;
+        assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // log_buf(&lines, wx, hx);
     }
 }
 
