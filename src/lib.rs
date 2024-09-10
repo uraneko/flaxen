@@ -14,7 +14,6 @@ pub use raw_mode::*;
 pub use termbuf::*;
 
 // TODO: text position, vertical/horizontal center, start or end
-// TODO: ctrl + l  = clear and render whole term buffer event
 // TODO: term switch event
 // TODO: menu selection events
 // TODO: input objects mevement events

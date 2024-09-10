@@ -1,4 +1,6 @@
 use events::*;
+use ragout::events::core::{BasicInput, InnerLogic};
+use ragout::object_tree::Text;
 use ragout::*;
 use ragout::{decode_ki_kai, read_ki};
 use space::{Border, Padding};
@@ -112,6 +114,8 @@ fn main() {
 
     let mut i = vec![];
 
+    let mut emoji = 0x1f600;
+
     let mut load = true;
     loop {
         ragout::frames(60);
@@ -120,7 +124,6 @@ fn main() {
 
         let (cols, rows) = (ws.cols(), ws.rows());
         if cols != term.w || rows != term.h {
-            print!("\r\n\n\n\nabababababa");
             term.fire(crate::events::core::WindowResized::new(cols, rows));
         }
 
@@ -135,6 +138,7 @@ fn main() {
 
         if let Some(id) = term.active {
             let inobj = term.input_ref_mut(&id).unwrap();
+            inobj.fire((&ke, &mut emoji));
             let key = inobj.name.clone();
             if load {
                 term.load_input(&key);
@@ -144,7 +148,11 @@ fn main() {
             // print!("\r\n\n\n\n\n\n{:?}", term.cache);
             let inobj = term.input_ref_mut(&id).unwrap();
             inobj.vstyle(&style1);
-            let res = inobj.fire((&ke, &cache));
+            let res =
+                <Text as Events<BasicInput, InnerLogic, (&KbdEvent, &[Vec<Option<char>>])>>::fire(
+                    inobj,
+                    (&ke, &cache),
+                );
             // inobj.render_value(&mut writer);
             term.live_render(&mut writer);
             if !res.is_empty() {

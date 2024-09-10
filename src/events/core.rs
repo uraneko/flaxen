@@ -120,6 +120,25 @@ impl<'a> Events<InteractiveSwitch, Interactive, (&'a KbdEvent, &'a mut StdoutLoc
     }
 }
 
+pub struct EmojiList;
+impl EventsTrigger<InnerLogic> for (&KbdEvent, &mut u32) {}
+impl EventsConclusion<InnerLogic> for () {}
+
+// FIXME: non ascii unicode chars get rendered in more than 1 character cell
+
+impl<'a> Events<EmojiList, InnerLogic, (&'a KbdEvent, &'a mut u32)> for Text {
+    fn fire(&mut self, inputs: (&'a KbdEvent, &'a mut u32)) {
+        let (ke, mut emoji) = (inputs.0, inputs.1);
+        match (&ke.char, &ke.modifiers) {
+            (Char::CC(CC::PageUp), Modifiers(0)) => *emoji += 1,
+            (Char::CC(CC::PageDown), Modifiers(0)) => *emoji -= 1,
+            _ => return,
+        };
+
+        self.put_char(std::char::from_u32(*emoji).unwrap_or(' '));
+    }
+}
+
 impl EventsTrigger<CoreEvents> for (&KbdEvent, &mut StdoutLock<'static>, &termios) {}
 
 impl<'a> Events<BasicInput, CoreEvents, (&'a KbdEvent, &'a mut StdoutLock<'static>, &'a termios)>
