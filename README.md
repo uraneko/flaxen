@@ -1,152 +1,84 @@
-## ragout - terminal Raw Mode Input Handler
+<h1 align="center">
+    ragout
+</h1> 
 
-<!-- ![CRATES.IO](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
-<!---->
-<!-- ![DOCS.RS](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
-<!---->
-<!-- ![GITHUB](https://github.com/uraneko/ragout/actions/workflows/main.yml/crates-io.svg?branch=BRANCH-NAME&event=push) -->
-<!---->
-![BUILD](https://github.com/uraneko/ragout/actions/workflows/rust.yml/build.svg?branch=shin_sekai&event=push)
+[<img   alt="github" src="https://img.shields.io/badge/github-uraneko.ragout-A5915F?style=for-the-badge&logo=github&labelColor=3a3a3a" height="25">](https://github.com/uraneko/ragout) 
+[<img alt="crates.io" src="https://img.shields.io/crates/v/ragout.svg?style=for-the-badge&color=E40046&logo=rust&labelColor=3a3a3a" height="25">](https://crates.io/crates/ragout) 
+[<img alt="docs.rs" src="https://img.shields.io/badge/docs.rs-ragout-495c9f?style=for-the-badge&logo=docsdotrs&labelColor=3a3a3a" height="25">](https://docs.rs/ragout) 
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/uraneko/ragout/rust.yml?branch=main&style=for-the-badge&labelColor=3a3a3a" height="25">](https://github.com/uraneko/ragout/actions?query=branch%3Amain)
+[<img alt="license" src="https://img.shields.io/github/license/uraneko/ragout?style=for-the-badge&labelColor=3a3a3a&color=ECD53F" height="25">](https://github.com/uraneko/ragout/blob/main/LICENSE)
 
-ragout is a library crate offering shell functionalities inside the terminal raw mode.
-It aims to be lightweight and tries not to get in the way by offering a limited api in a small sized crate with minimal dependencies.
-
-This lib is for projects that want a little more functionality than the typical cli tool has, but don't want to use something fully equipped like crossterm.
+<h3 align="center">
+    Terminal User Interface (TUI) Library
+</h3>
+ 
+This crate aims to facilitate the creation of terminal programs, such as cli tools, ascii/unicode games or full fledged tui programs.
+Features wise, it probably sits between ratatui and crossterm (I have not used either).
+Notable Characteristics: 
+- zero dependencies
+- lightweight 
+- mid to low level abstraction to various terminal utilities including keyboard input reading or object rendering into the terminal display
+- implement your own events 
 
 ## Support 
-Supports only Linux, plans for supporting Windows and maybe Apple are there, but are currently not a priority.
-
-[!NOTE]
-This crate is currently undergoing heavy refactoring in the shin_sekai branch.
-
-<br/>
+I'm developing on Hyprland on arch linux, so the hundreds of millions of wayland loving arch/hyprland users can rest assured that their machines are most likely supported. The majority of linux users should mostly have no problem using this lib as well. As for niche systems like windows or apple, I can try to test on a windows vm. But serious support of both systems would need the help of a good samaritan like yourself.
 
 ## Features
-- **input movements**
-    - move to start/end of input line
-    - move to the next/prev item (basically a word) 
-- **input deletion**
-    - delete whole input line
-    - delete all input to the right/left of cursor
-- **history**
-    - save input to input history on user submission (hits enter/return)
-    - navigate through saved history entries with the up/down keys
-- **exit** the program with CTRL-C (uses std::process::exit())
-
-<br/><br/>
 
 ## Examples
 
-### Basic usage
+## What is this and Why?
 
-```sh
-$ cargo run --example basic
-```
+<details>
+    <summary>It all started when I began writing a simple cli tool</summary>
 
-```rust
-use ragout::{init, run};
+I was making cli tool, then I
 
-fn main() {
-    // enter raw mode and initialize necessary variables
-    // the string literal argument will be the value of the prompt
-    let (mut sol, mut i, mut h, mut ui) = init("some prompt 🐱 ", true);
+🠊 needed more user input maneuverability/functionality 
 
-    'main: loop {
-        let input = run(&mut i, &mut h, &mut sol, &mut ui);
-        if !input.is_empty() {
-            // do some stuff with the user input
-        }
-    }
-}
-```
+🠊 did some reseach and learnt of terminal raw mode 
 
-<br/><br/>
+🠊 imported crossterm's raw_mode and keyboard event reading functionalities 
 
-### Using the macro 
+🠊 had to implement my own user input movement + insertion/deletion logic (but hey, now I could implement whatever I wanted) 
 
-```sh
-$ cargo run --example macro --no-default-features --features custom_events
-```
+🠊 could return to making the cli tool that now has shiny user input, now that the new advanced user input module was ready
 
-```rust
-use ragout::ragout_custom_events;
+🠊 thought that it was a pain how I had to do all of that because I just wanted to move to the right and left while writing input in terminal and couldn't find a small crate that does that
 
-ragout_custom_events! {
-    KeyCode::F(5), 0x0, TestF(u8),
-    || {
-        let date = std::process::Command::new("date")
-            .output()
-            .unwrap()
-            .stdout.into_iter()
-            .map(|u| u as char)
-            .collect::<String>()
-            .replacen("\"", "", 2);
+🠊 made the crossterm dependent raw mode based user input logic handler module into an independent crate and published it
 
+🠊 planned to refactor this new crate because it has an unsatisfactory desgin
 
-        self.overwrite_prompt(date
-            .trim_end_matches('\n'));
-        self.write_prompt(sol);
-        // TODO: sol.write input, should be called from inside input.write_prompt() right before
-        // sol.flush() at the end
-    };
-    KeyCode::Esc, 0x0, TestPrintScreen,
-    || {
-        // requires that the grim cli tool (or something similar, replace as needed) is installed
-        let cmd = std::process::Command::new("grim").arg("target/screenshot.png").output().unwrap();
+🠊 instead of refactoring the newly published crate and calling it a day, went on adding new features, I even made a 'not really the right situation for it'  proc-macro, which massively inflated the issues of the poor design
 
-        let inst = std::time::Instant::now();
+🠊 decided to properly redo the crate from the ground up while eliminating all dependencies 
 
-        let temp = self.prompt.drain(..).collect::<String>();
-        self.overwrite_prompt("saved screenshot to target/screenshot.png> ");
-        self.write_prompt(sol);
+🠊 redid the crate from the ground up
 
-        let notify =  std::thread::spawn(move || loop {
-                if inst.elapsed() > std::time::Duration::from_secs(3) {
+🠊 ended up with v0.4.0 of this crate: a TUI library
+</details>
 
-                    break true;
-                }
-        });
+## What Next
+For now, there is some basic functionality that still needs to be implemented (contributions are welcome), then I'll see what features crates such as ratatui and crossterm provide and add those that I deem suitabe for the scope and direction of ragout.
 
-        let notify = notify.join().unwrap();
-        if notify {
-            self.overwrite_prompt(&temp);
-            self.write_prompt(sol);
-        }
+<!-- ## License -->
+<!-- Licensed under the <a href="LICENSE">MIT license</a>. -->
+<!-- > [!IMPORTANT]  -->
+<!-- > Contributions / Copyright -->
 
-    };
-}
-
-fn main() {
-    let (mut sol, mut i, mut h, mut ui) = init("some prompt 🐭 ", true);
-
-    'main: loop {
-        let input = run(&mut i, &mut h, &mut sol, &mut ui);
-        if !input.is_empty() {
-            // do some stuff with the user input
-        }
-    }
-}
-```
-
-<br/><br/>
-
-## License
-Licensed under the <a href="LICENSE">MIT license</a>.
-
-<br/><br/>
-
-## Versioning 
+## Versioning
 Follows the [SemVer Spec](https://semver.org/).
-~Until the time arrives for the version to reach 1.0.0, the repo will adhere to the following rules for versions x.y.z:~
-~- x is constant at 0.~
-~- aside from a number of exceptions, changes incrementing y are accompanied by a milestone creation,~
-~i.e., the first pr of a new milestone increments y.~
-~- everything else increments z. Consecutive small changes may be combined into a single incrementation of z.~
-~- the above three rules are not always respected.~
-
 Until the crate hits version 1.0.0, there are no rules, nonetheless, I'll try to make sense.
 
-<br/><br/>
+> [!WARNING]
+> You should not use versions < 0.4.0. They are poorly designed and more of a draft of the crate.
 
-[!WARN]
-This crate is still unstable, if something breaks, or you want a feature, feel free to open an issue.
+<hr>
+
+> [!IMPORTANT]
+> Contributions are very welcome, especially for testing support on different systems.
+
+> [!NOTE]
+> As this is my first open source project and I'm new to github in general, any feedback or criticism would be really appreciated.
+

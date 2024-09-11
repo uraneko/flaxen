@@ -17,7 +17,9 @@ pub use termbuf::*;
 // TODO: term switch event
 // TODO: menu selection events
 // TODO: input objects mevement events
-// TODO: emoji selection event
+// FIXME: emojis take 2 cells instead of one, which easily ruins the rendering in many cases
+// TODO: change objects to take vertices/edges instead of a width and height
+// that way an object can have different shapes
 
 pub fn frames(fps: u64) {
     let frames = 1000 / fps;

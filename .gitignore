@@ -1,3 +1,4 @@
 target/
 resources/logs/
 Cargo.lock
+cache
