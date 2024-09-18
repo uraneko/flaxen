@@ -1,6 +1,7 @@
 use crate::object_tree::*;
 use crate::space::{Border, Padding};
 use crate::themes::Style;
+use std::str::Chars;
 
 use std::collections::HashMap;
 use std::io::{StdoutLock, Write};
@@ -128,13 +129,13 @@ impl Term {
 }
 
 impl Container {
-    // renders container border and children
+    /// wrapper around the render_border and render_value method calls
     pub fn render(&self, writer: &mut StdoutLock) {
         self.render_border(writer);
         self.render_value(writer);
     }
 
-    // renders only the items inside the container without rendering their borders
+    /// renders only the items inside the container
     pub fn render_value(&self, writer: &mut StdoutLock) {
         let [_, pol, pot, _, _, pil, pit, _] = spread_padding(&self.padding);
         let cb = if let Border::None = self.border { 0 } else { 1 };
@@ -152,7 +153,7 @@ impl Container {
         });
     }
 
-    // renders only the container border
+    /// renders only the container border
     pub fn render_border(&self, writer: &mut StdoutLock) {
         let [_, pol, pot, _, pir, pil, pit, pib] = spread_padding(&self.padding);
         let [xb, yb] = [self.x0 + pol + 1, self.y0 + pot];
@@ -191,7 +192,7 @@ impl Container {
 
     // adds padding and border to the width and height of the container
     // should be called from the sef render method
-    pub fn decorate(&self) -> [u16; 2] {
+    pub(crate) fn decorate(&self) -> [u16; 2] {
         let [mut wextra, mut hextra] = match self.border {
             Border::None => [self.w, self.h],
             _ => [self.w + 2, self.h + 2],
@@ -231,7 +232,7 @@ impl Container {
 
     // prepares the border and paddings of the container
     // then calls all the self items prepare methods
-    pub fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
+    fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
         // make out each line of the item, padding and border included
         // then render line
         // until all lines are rendered
@@ -306,6 +307,30 @@ impl Container {
                 trcorner, tlcorner, blcorner, brcorner, tb, rl, lines, wx, hx, por, pol, pot, pob,
                 pir, pil, pit, pib,
             ),
+
+            Border::Manual {
+                tlcorner,
+                trcorner,
+                brcorner,
+                blcorner,
+                r0,
+                rp,
+                r1,
+                l0,
+                lp,
+                l1,
+                t0,
+                tp,
+                t1,
+                b0,
+                bp,
+                b1,
+            } => {
+                self.process_manual(
+                    tlcorner, trcorner, blcorner, brcorner, r0, rp, r1, l0, lp, l1, t0, tp, t1, b0,
+                    bp, b1, lines, wx, hx, por, pol, pot, pob, pir, pil, pit, pib,
+                );
+            }
         }
     }
 
@@ -499,16 +524,202 @@ impl Container {
         line += 1;
         assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
     }
+
+    fn process_manual(
+        &self,
+        tlcorner: char,
+        trcorner: char,
+        blcorner: char,
+        brcorner: char,
+        r0: &str,
+        rp: char,
+        r1: &str,
+        l0: &str,
+        lp: char,
+        l1: &str,
+        t0: &str,
+        tp: char,
+        t1: &str,
+        b0: &str,
+        bp: char,
+        b1: &str,
+        lines: &mut Vec<Option<char>>,
+        wx: u16,
+        hx: u16,
+        por: u16,
+        pol: u16,
+        pot: u16,
+        pob: u16,
+        pir: u16,
+        pil: u16,
+        pit: u16,
+        pib: u16,
+    ) {
+        // calculate border padding value len
+        // we substract 2 at the end for the 2 corner values
+        let mut bpt = wx - pol - por - t0.chars().count() as u16 - t1.chars().count() as u16 - 2;
+        let mut bpb = wx - pol - por - b0.chars().count() as u16 - b1.chars().count() as u16 - 2;
+        let mut bpr = hx - pot - pob - r0.chars().count() as u16 - r1.chars().count() as u16 - 2;
+        let mut bpl = hx - pot - pob - l0.chars().count() as u16 - l1.chars().count() as u16 - 2;
+
+        print!("wx: {}, hx: {}\r\n", wx, hx);
+        print!("pot: {}, pol: {}, por: {}, pob: {}\r\n", pot, pol, por, pob);
+        print!(
+            "t0 len: {}, t1 len: {}\r\n",
+            t0.chars().count(),
+            t1.chars().count()
+        );
+        print!(
+            "bpt = {} - {} - {} - {} - {} - 2 = {}",
+            wx,
+            pol,
+            por,
+            t0.chars().count(),
+            t1.chars().count(),
+            bpt
+        );
+
+        print!(
+            "top: {} - bottom: {} - right: {} - left: {}\r\n",
+            bpt, bpb, bpr, bpl
+        );
+
+        let bt = format!(
+            "{}{}{}",
+            t0,
+            (0..bpt).into_iter().map(|_| tp).collect::<String>(),
+            t1,
+        );
+        print!("bt {}=> \r\n{}\r\n\n", bt.chars().count(), bt);
+        let mut bt = bt.chars();
+
+        let br = format!(
+            "{}{}{}",
+            r0,
+            (0..bpr).into_iter().map(|_| rp).collect::<String>(),
+            r1,
+        );
+        print!("br => \r\n{}\r\n\n", br);
+        let mut br = br.chars();
+
+        let bl = format!(
+            "{}{}{}",
+            l0,
+            (0..bpl).into_iter().map(|_| lp).collect::<String>(),
+            l1,
+        );
+        print!("bl => \r\n{}\r\n\n", bl);
+        let mut bl = bl.chars();
+
+        let bb = format!(
+            "{}{}{}",
+            b0,
+            (0..bpb).into_iter().map(|_| bp).collect::<String>(),
+            b1,
+        );
+        print!("bb => \r\n{}\r\n\n", bb);
+        let mut bb = bb.chars();
+
+        // the line the value starts on
+        let v0 = pot + 1 + pit;
+        // the line the value ends on
+        let v1 = v0 + self.h;
+        // println!("{}: v0 = {}, v1 = {}", line!(), v0, v1,);
+        // println!("{}: wextra = {}, hxtra = {}", line!(), wx, hx);
+
+        // first line of border
+        // lines of padding times number of cells in one line
+        let mut idx = pot * wx;
+        let mut line = pot;
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // we skip the outer left padding values
+        idx += pol;
+
+        // we write the top left corner
+        lines[idx as usize] = Some(tlcorner);
+        idx += 1;
+
+        // log_buf(&lines, wx, hx);
+
+        // write top border values
+        while let Some(ch) = bt.next() {
+            lines[idx as usize] = Some(ch);
+            idx += 1;
+        }
+
+        // we write the top right corner
+        lines[idx as usize] = Some(trcorner);
+        idx += 1;
+
+        // println!("lines ==> {:?}", lines);
+        // log_buf(&lines, wx, hx);
+        // we skipp the outer right padding
+        idx += por;
+        // first bordered line ends
+        line += 1;
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+
+        // handle the pre value lines
+        // every iteration is a line
+        // we are still not in front of the value lines
+        while line < pot + 1 + pit + self.h + pib {
+            // new line we skip padding outer left
+            idx += pol;
+            // left border cell
+            lines[idx as usize] = bl.next();
+            idx += 1;
+            // skip inner left and right padding and the value width
+            idx += pil + self.w + pir;
+            // right border cell
+            lines[idx as usize] = br.next();
+            idx += 1;
+            // skipp outer right padding
+            idx += por;
+
+            line += 1;
+            // we are in front of the second full border line
+        }
+        // second and last line of full border
+        // we skip the outer left padding values
+        idx += pol;
+
+        // we write the border bottom left corner value
+        lines[idx as usize] = Some(blcorner);
+        idx += 1;
+
+        // write bottom border values
+        while let Some(ch) = bb.next() {
+            lines[idx as usize] = Some(ch);
+            idx += 1;
+        }
+
+        // we write the border bottom right value
+        lines[idx as usize] = Some(brcorner);
+        idx += 1;
+
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // log_buf(&lines, wx, hx);
+        // we skip the outer right padding
+        idx += por;
+        // second bordered line ends
+        line += 1;
+        assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // log_buf(&lines, wx, hx);
+    }
 }
 
+// TODO: should process only if values change
+// otherwise just render
+
 impl Text {
-    // renders both the text border and value
+    /// wrapper around the render_border and render_value method calls
     pub fn render(&self, writer: &mut StdoutLock) {
         self.render_border(writer);
         self.render_value(writer);
     }
 
-    // renders only the text border
+    /// renders only the text border
     pub fn render_border(&self, writer: &mut StdoutLock) {
         let [por, pol, pot, pob, pir, pil, pit, pib] = spread_padding(&self.padding);
         let [xb, yb] = [self.ax0 - pil - 1, self.ay0 - pit - 1];
@@ -545,7 +756,7 @@ impl Text {
         }
     }
 
-    // renders only the text value
+    /// renders only the text value
     pub fn render_value(&self, writer: &mut StdoutLock) {
         let h0 = self.ay0;
 
@@ -578,7 +789,7 @@ impl Text {
         writer.write(s.as_bytes());
     }
 
-    pub fn decorate(&self) -> [u16; 2] {
+    pub(crate) fn decorate(&self) -> [u16; 2] {
         let [mut wextra, mut hextra] = match self.border {
             Border::None => [self.w, self.h],
             _ => [self.w + 2, self.h + 2],
@@ -617,7 +828,7 @@ impl Text {
     }
 
     // this should be used inside the container prepare method
-    pub fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
+    fn prepare(&self) -> (Vec<Option<char>>, [u16; 2]) {
         // make out each line of the item, padding and border included
         // then render line
         // until all lines are rendered
@@ -658,6 +869,30 @@ impl Text {
                 trcorner, tlcorner, blcorner, brcorner, tb, rl, lines, wx, hx, por, pol, pot, pob,
                 pir, pil, pit, pib,
             ),
+
+            Border::Manual {
+                tlcorner,
+                trcorner,
+                brcorner,
+                blcorner,
+                r0,
+                rp,
+                r1,
+                l0,
+                lp,
+                l1,
+                t0,
+                tp,
+                t1,
+                b0,
+                bp,
+                b1,
+            } => {
+                self.process_manual(
+                    tlcorner, trcorner, blcorner, brcorner, r0, rp, r1, l0, lp, l1, t0, tp, t1, b0,
+                    bp, b1, lines, wx, hx, por, pol, pot, pob, pir, pil, pit, pib,
+                );
+            }
         }
     }
 
@@ -999,9 +1234,233 @@ impl Text {
         // println!("{}: idx = {}, line = {}", line!(), idx, line,);
         // log_buf(&lines, wx, hx);
     }
+
+    fn process_manual(
+        &self,
+        tlcorner: char,
+        trcorner: char,
+        blcorner: char,
+        brcorner: char,
+        r0: &str,
+        rp: char,
+        r1: &str,
+        l0: &str,
+        lp: char,
+        l1: &str,
+        t0: &str,
+        tp: char,
+        t1: &str,
+        b0: &str,
+        bp: char,
+        b1: &str,
+        lines: &mut Vec<Option<char>>,
+        wx: u16,
+        hx: u16,
+        por: u16,
+        pol: u16,
+        pot: u16,
+        pob: u16,
+        pir: u16,
+        pil: u16,
+        pit: u16,
+        pib: u16,
+    ) {
+        // calculate border padding value len
+        // we substract 2 at the end for the 2 corner values
+        let mut bpt = wx - pol - por - t0.chars().count() as u16 - t1.chars().count() as u16 - 2;
+        let mut bpb = wx - pol - por - b0.chars().count() as u16 - b1.chars().count() as u16 - 2;
+        let mut bpr = hx - pot - pob - r0.chars().count() as u16 - r1.chars().count() as u16 - 2;
+        let mut bpl = hx - pot - pob - l0.chars().count() as u16 - l1.chars().count() as u16 - 2;
+
+        let bt = format!(
+            "{}{}{}",
+            t0,
+            (0..bpt).into_iter().map(|_| tp).collect::<String>(),
+            t1,
+        );
+        let mut bt = bt.chars();
+
+        let br = format!(
+            "{}{}{}",
+            r0,
+            (0..bpr).into_iter().map(|_| rp).collect::<String>(),
+            r1,
+        );
+        let mut br = br.chars();
+
+        let bl = format!(
+            "{}{}{}",
+            l0,
+            (0..bpl).into_iter().map(|_| lp).collect::<String>(),
+            l1,
+        );
+        let mut bl = bl.chars();
+
+        let bb = format!(
+            "{}{}{}",
+            b0,
+            (0..bpb).into_iter().map(|_| bp).collect::<String>(),
+            b1,
+        );
+        let mut bb = bb.chars();
+
+        // the line the value starts on
+        let v0 = pot + 1 + pit;
+        // the line the value ends on
+        let v1 = v0 + self.h;
+        // println!("{}: v0 = {}, v1 = {}", line!(), v0, v1,);
+        // println!("{}: wextra = {}, hxtra = {}", line!(), wx, hx);
+
+        // first line of border
+        // lines of padding times number of cells in one line
+        let mut idx = pot * wx;
+        let mut line = pot;
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // we skip the outer left padding values
+        idx += pol;
+
+        // log_buf(&lines, wx, hx);
+
+        // we write the top left corner
+        lines[idx as usize] = Some(tlcorner);
+        idx += 1;
+
+        // log_buf(&lines, wx, hx);
+
+        // write top border values
+        while let Some(ch) = bt.next() {
+            lines[idx as usize] = Some(ch);
+            idx += 1;
+        }
+
+        // we write the top right corner
+        lines[idx as usize] = Some(trcorner);
+        idx += 1;
+
+        // println!("lines ==> {:?}", lines);
+        // log_buf(&lines, wx, hx);
+        // we skipp the outer right padding
+        idx += por;
+        // first bordered line ends
+        line += 1;
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+
+        // handle the pre value lines
+        // every iteration is a line
+        // we are still not in front of the value lines
+        while line < v0 {
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell, write border left/right value
+            lines[idx as usize] = bl.next();
+            idx += 1;
+            // skip inner left and right padding and the value len
+            idx += pil + self.w + pir;
+            // border cell, write border left/right value
+            lines[idx as usize] = br.next();
+            idx += 1;
+            // skip outer right padding
+            idx += por;
+
+            line += 1;
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // log_buf(&lines, wx, hx);
+        }
+
+        // handle the value lines
+        // every iteration is a line
+        // we are not out of the value lines yet
+        while line < v1 {
+            // println!("==>> line = {}", line);
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell
+            lines[idx as usize] = bl.next();
+            idx += 1;
+            // skip inner left padding
+            idx += pil;
+            // write values
+            for vi in 0..self.w as usize {
+                // println!(
+                //     "{}: vi{} + (w{} * (line{} - pot{} - 1 - pit{})) = {}",
+                //     line!(),
+                //     vi,
+                //     self.w,
+                //     line,
+                //     pot,
+                //     pit,
+                //     vi + (self.w * (line - pot - 1 - pit)) as usize
+                // );
+                let i = vi + (self.w * (line - pot - 1 - pit)) as usize;
+                if i < self.value.len() {
+                    lines[idx as usize] = self.value[i];
+                }
+                idx += 1;
+                // log_buf(&lines, wx, hx);
+            }
+            // skip inner right padding
+            idx += pir;
+            // border cell
+            lines[idx as usize] = br.next();
+            idx += 1;
+            // skip outer right padding
+            idx += por;
+
+            line += 1;
+            // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+            // log_buf(&lines, wx, hx);
+        }
+        // we left value lines
+
+        // while we are not in front of the second full border line yet
+        while line < pot + 1 + pit + self.h + pib {
+            // new line we skip padding outer left
+            idx += pol;
+            // border cell
+            lines[idx as usize] = bl.next();
+            idx += 1;
+            // skip inner left and right padding and the value width
+            idx += pil + self.w + pir;
+            // border cell
+            lines[idx as usize] = br.next();
+            idx += 1;
+            // skipp outer right padding
+            idx += por;
+
+            line += 1;
+        }
+
+        // second and last line of full border
+        // we skip the outer left padding values
+        idx += pol;
+
+        // we write the border bottom left corner value
+        lines[idx as usize] = Some(blcorner);
+        idx += 1;
+
+        // write bottom border values
+        while let Some(ch) = bb.next() {
+            lines[idx as usize] = Some(ch);
+            idx += 1;
+        }
+
+        // we write the border bottom right value
+        lines[idx as usize] = Some(brcorner);
+        idx += 1;
+
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // log_buf(&lines, wx, hx);
+        // we skip the outer right padding
+        idx += por;
+        // second bordered line ends
+        line += 1;
+        assert_eq!(line + pob, pit + pot + self.h + pib + pob + 2);
+        // println!("{}: idx = {}, line = {}", line!(), idx, line,);
+        // log_buf(&lines, wx, hx);
+    }
 }
 
-pub fn spread_padding(p: &Padding) -> [u16; 8] {
+pub(crate) fn spread_padding(p: &Padding) -> [u16; 8] {
     match p {
         Padding::None => [0; 8],
         Padding::Inner {
