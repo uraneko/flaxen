@@ -8,7 +8,8 @@ extern "C" {
     fn tcsetattr(__fd: i32, __optional_actions: i32, __termios_p: *const termios) -> i32;
 }
 
-// from /usr/include/asm-generic/termbits.h
+/// ffi bindings for the c struct found here 'from /usr/include/asm-generic/termbits.h'
+/// termios can be used to manipulate terminal flags
 #[derive(Debug, Default, Clone)]
 #[repr(C)]
 pub struct termios {
@@ -102,11 +103,11 @@ pub fn raw_mode() -> termios {
 
 /// disables raw mode to original flags configuration
 /// takes the original flags from the 'original' termios instance returned from enable_raw_mode
-pub fn cooked_mode(original: &termios) {
-    let _res = unsafe { tcsetattr(STDIN_FILENO, TCSANOW, original) };
+pub fn cooked_mode(original: &termios) -> i32 {
+    unsafe { tcsetattr(STDIN_FILENO, TCSANOW, original) }
 }
 
 /// enables rare mode
 /// a terminal mode that is between cooked and raw
 /// in terms of features and functionality
-pub fn rare_mode() {}
+fn rare_mode() {}

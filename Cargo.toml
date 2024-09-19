@@ -6,56 +6,16 @@ description = "Terminal raw mode utilities"
 license = "MIT"
 repository = "https://github.com/uraneko/ragout"
 readme = "README.md"
-keywords = ["terminal", "raw_mode", "cli"]
+keywords = ["terminal", "raw_mode", "cli", "tui_lib"]
 categories = ["command-line-interface"]
-exclude = ["resources/logs/", "Cargo.lock"]
+exclude = ["Cargo.lock"]
 documentation = "https://docs.rs/ragout"
 
 [[example]]
-name = "themes"
-path = "examples/themes.rs"
+name = "inputs"
+path = "examples/inputs.rs"
 
-[[example]]
-name = "e3"
-path = "examples/events3.rs"
-
-[[example]]
-name = "input"
-path = "examples/basic.rs"
-
-[[example]]
-name = "mi"
-path = "examples/mouse.rs"
-
-[[example]]
-name = "events"
-path = "examples/events.rs"
-
-[[example]]
-name = "bad"
-path = "examples/bad.rs"
-
-[[example]]
-name = "events2"
-path = "examples/events2.rs"
-
-[[example]]
-name = "impl"
-path = "examples/impl.rs"
-
-[[example]]
-name = "cache"
-path = "examples/cache.rs"
-
-[[example]]
-name = "bufimg"
-path = "examples/buffer_image.rs"
-
-
-[features]
-# default = ["lib", "styled"]
-# lib = []
-# styled = []
-# custom_events = ["dep:ragout_custom_events_macro"]
-# the debug_logs feature would be enabled only when the debug_logs feature in ragout_assistant is enabled
-# debug_logs = ["ragout_assistant/debug_logs"]
+[package.metadata.docs.rs]
+all-features = true
+targets = ["x86_64-unknown-linux-gnu"]
+rustdoc-args = ["--generate-link-to-definition"]

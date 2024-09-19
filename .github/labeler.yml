@@ -1,0 +1,24 @@
+Documentation: 
+  - any:
+    - changed-files: 
+        - any-glob-to-any-file: 'target/doc/**'
+
+Feature: 
+  - head-branch: ['feature']
+
+Fix: 
+  - head-branch: ['fix', 'bug']
+
+Example: 
+  - head-branch: ['example']
+
+  - any:
+    - changed-files:
+      - any-glob-to-any-file: "examples/**"
+
+Test: 
+  - head-branch: ['test']
+
+  - any:
+    - changed-files:
+      - any-glob-to-any-file: "tests/**"

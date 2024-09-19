@@ -12,7 +12,7 @@
     Terminal User Interface (TUI) Library
 </h3>
  
-TODO!
+ragout is a TUI library written in rust. Implementation wise, this crate sits between crossterm and ratatui. Check features to know what this can be used for. Check examples to know how to use. Check direction to know where the crate is heading.
 
 ## Support 
 Works on Linux amd64 (if you have problems, open an issue describing your problem).
@@ -69,7 +69,7 @@ Which was fine, but then I started adding unneeded features and the design turne
 <br>
 
 > [!CAUTION]
-> You should not use versions < 0.4.0. Those are depricated and have a messy design.
+> You should not use versions < 0.4.0. Those are depricated, don't have the basic TUI features and have a messy design.
 
 <br>
 

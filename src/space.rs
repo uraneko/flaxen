@@ -1,4 +1,4 @@
-use crate::object_tree::{ComponentTree, Container, Term, Text};
+use crate::components::{ComponentTree, Container, Term, Text};
 
 use std::collections::HashMap;
 use std::{
@@ -9,11 +9,6 @@ use std::{
     },
 };
 
-// FIXME: this is partially wrong but the wrong part is needed for the overlay only
-// fix this before making the overlay
-// top, right, bottom, left
-// a is the new object
-// b is the pre existing one
 pub(crate) fn area_conflicts(
     newx0: u16,
     newy0: u16,
