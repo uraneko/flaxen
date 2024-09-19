@@ -12,73 +12,70 @@
     Terminal User Interface (TUI) Library
 </h3>
  
-This crate aims to facilitate the creation of terminal programs, such as cli tools, ascii/unicode games or full fledged tui programs.
-Features wise, it probably sits between ratatui and crossterm (I have not used either).
-Notable Characteristics: 
-- zero dependencies
-- lightweight 
-- mid to low level abstraction to various terminal utilities including keyboard input reading or object rendering into the terminal display
-- implement your own events 
+TODO!
 
 ## Support 
-I'm developing on Hyprland on arch linux, so the hundreds of millions of wayland loving arch/hyprland users can rest assured that their machines are most likely supported. The majority of linux users should mostly have no problem using this lib as well. As for niche systems like windows or apple, I can try to test on a windows vm. But serious support of both systems would need the help of a good samaritan like yourself.
+Works on Linux amd64 (if you have problems, open an issue describing your problem).
+
+If the CI builds are passing then, the lib at least builds on Windows amd64 and Apple amd64/aarch64 systems (again, if you encounter a problem, open an issue describing what happened).
 
 ## Features
+✓ inputs: keyboard, mouse and window(wip) input events.
+
+✗ themes: style components' values and borders.
+
+✓ raw/cooked terminal mode.
+
+✓ optional mouse input.
+
+✗ components overlay on/off
+
+<br>
+✓ the core logic of the feature is basically implemented
+
+✗ the core logic of the feature is not implemented yet
 
 ## Examples
 
-## What is this and Why?
+## Game
+```shell
+cargo run --example game
+```
 
-<details>
-    <summary>It all started when I began writing a simple cli tool</summary>
+## Text Editor 
+```shell
+cargo run --example text_editor
+```
 
-I was making cli tool, then I
+## Direction
+These features may be implemented next, if you want to know what's actively developed, check out the issues, prs and branches.
 
-🠊 needed more user input maneuverability/functionality 
+- component overlay support 
+- better components api (e.g., Position::Center to center a component instead of having to pass parent.width / 2)
+- gamepad input support
+- better themes api
 
-🠊 did some reseach and learnt of terminal raw mode 
+## Version Mess
+The versioning of the crate is a bit messy. Because, one, I'm new to this, and two, I didn't intend for this to be a real crate. 
 
-🠊 imported crossterm's raw_mode and keyboard event reading functionalities 
+At first, I was writing a cli tool and simply wanted the capability to move around and have already inputted value caching, which ended up being a bigger chore that I thought to implement, so I thought I'd share it. 
 
-🠊 had to implement my own user input movement + insertion/deletion logic (but hey, now I could implement whatever I wanted) 
+Which was fine, but then I started adding unneeded features and the design turned messy fast. Eventually, I decided to make a TUI crate from scratch (v0.4.0 and above).
 
-🠊 could return to making the cli tool that now has shiny user input, now that the new advanced user input module was ready
+> [IMPORTANT] 
+> This crate follows the [SemVer Spec](https://semver.org/).
+> Until the crate hits version 1.0.0, there are no rules, nonetheless, I'll try to make sense.
 
-🠊 thought that it was a pain how I had to do all of that because I just wanted to move to the right and left while writing input in terminal and couldn't find a small crate that does that
+<br>
 
-🠊 made the crossterm dependent raw mode based user input logic handler module into an independent crate and published it
+> [!CAUTION]
+> You should not use versions < 0.4.0. Those are depricated and have a messy design.
 
-🠊 planned to refactor this new crate because it has an unsatisfactory desgin
+<br>
 
-🠊 instead of refactoring the newly published crate and calling it a day, went on adding new features, I even made a 'not really the right situation for it'  proc-macro, which massively inflated the issues of the poor design
+<hr height="1">
 
-🠊 decided to properly redo the crate from the ground up while eliminating all dependencies 
-
-🠊 redid the crate from the ground up
-
-🠊 ended up with v0.4.0 of this crate: a TUI library
-</details>
-
-## What Next
-For now, there is some basic functionality that still needs to be implemented (contributions are welcome), then I'll see what features crates such as ratatui and crossterm provide and add those that I deem suitabe for the scope and direction of ragout.
-
-<!-- ## License -->
-<!-- Licensed under the <a href="LICENSE">MIT license</a>. -->
-<!-- > [!IMPORTANT]  -->
-<!-- > Contributions / Copyright -->
-
-## Versioning
-Follows the [SemVer Spec](https://semver.org/).
-Until the crate hits version 1.0.0, there are no rules, nonetheless, I'll try to make sense.
-
-> [!WARNING]
-> You should not use versions < 0.4.0. They are poorly designed and more of a draft of the crate.
-
-<hr>
+<br>
 
 > [!IMPORTANT]
-> Contributions are very welcome, especially for testing support on different systems.
-
-> [!NOTE]
-> As this is my first open source project and I'm new to github in general, any feedback or criticism would be really appreciated.
-
+> Need help with testing different systems 
