@@ -18,6 +18,7 @@ use crate::console::winsize::winsize;
 
 /// reads the keyboard input event bytes
 pub fn read<'a>(reader: &'a mut StdinLock, buffer: &'a mut Vec<u8>) -> &'a mut Vec<u8> {
+    // TODO: non blocking reads
     buffer.clear();
 
     let buf = reader.fill_buf().unwrap();
@@ -31,6 +32,8 @@ pub fn read<'a>(reader: &'a mut StdinLock, buffer: &'a mut Vec<u8>) -> &'a mut V
 
 /// resolves the read input bytes to an InputEvent struct instance
 pub fn event(bytes: &[u8], ws: &mut winsize) -> InputEvent {
+    // FIXME: this only gets triggered on this blocking event fn
+    // it needs to be triggered on the actual resize event
     if ws.resized() {
         return InputEvent {
             time: SystemTime::now(),

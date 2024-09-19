@@ -51,8 +51,10 @@ cargo run --example text_editor
 These features may be implemented next, if you want to know what's actively developed, check out the issues, prs and branches.
 
 - component overlay support 
+- window input events
 - better components api (e.g., Position::Center to center a component instead of having to pass parent.width / 2)
 - gamepad input support
+- themes support
 - better themes api
 
 ## Version Mess
