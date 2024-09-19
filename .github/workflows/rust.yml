@@ -1,26 +1,102 @@
-name: BUILD
+name: rust.ci
 
 on: 
-  push: 
+  push:
     branches: 
-      - main
-
+      - main 
   pull_request: 
     branches: 
-      - main
-
+      - main 
   workflow_dispatch:
 
+permissions: 
+  contents: read
+
+env: 
+  CARGO_TERM_COLOR: always
+
 jobs: 
-  test_then_build:
-    name: ragout - latest
+  test: 
+    name: Test Rust ${{ matrix.toolchain }}
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     strategy: 
-      matrix: 
+      fail-fast: false
+      matrix:
         toolchain: 
-          - nightly
           - stable
+          - beta
+          - nightly
     steps: 
       - uses: actions/checkout@v4
-      - run : cargo b --verbose --release
-      - run: cargo t --verbose
+      - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
+      - run: cargo test --release --tests --all-features
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: 
+          name: Cargo.lock
+          path: Cargo.lock
+
+  build: 
+    name: Build ${{ matrix.name }} Rust stable
+    runs-on: ${{ matrix.system }}
+    strategy:
+      fail-fast: false
+      matrix: 
+        include: 
+          - name: linux-amd64
+            system: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - name: windows-amd64
+            system: windows-latest
+            target: x86_64-pc-windows-msvc
+          - name: macos-amd64
+            system: macos_amd-latest
+            target: x86_64-apple-darwin
+          - name: macos-arm64
+            system: macos_arm-latest
+            target: aarch64-apple-darwin
+
+    env: 
+      target: ${{ matrix.target && format('--target={0}', matrix.target) }}
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolney/rust-toolchain@stable
+        with: 
+          targets: ${{ matrix.target }}
+          components: ${{ matrix.components }}
+      - run: cargo check ${{ env.target }} --release --no-default-features
+      - run: cargo check ${{ env.target }} --release --features full
+      - run: cargo check ${{ env.target }} --release 
+
+  examples: 
+    name: Examples - ${{ matrix.example }}
+    runs-on: ubuntu-latest
+    strategy: 
+      fail-fast: false
+      matrix:
+        example: 
+          - game
+          - text editor 
+    timeout-minutes: 8
+    steps: 
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - runs: cargo check --manifest-path examples/${{ matrix.example }} 
+
+  docs: 
+    name: Documentation 
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps: 
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/install@cargo-docs-rs
+      - run: cargo docs-rs
+
+  # tag: 
+  #   name: Auto Tags
+  #   runs-on: ubuntu-latest
+  #   steps: 
+  #     - uses: actions/checkout@v4
