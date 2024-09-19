@@ -1,0 +1,22 @@
+name: DiedOfOldAge
+
+on: 
+  schedule: 
+    - cron: '30 1 * * *'
+
+jobs: 
+  stale: 
+    runs-on: ubuntu-latest
+    permissions: 
+      issues: write
+      pull-requests: write
+
+    steps: 
+    - uses: actions/stale@v9
+      with: 
+        days-before-close: 90
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        stale-issue-message: 'Closing issue after 90 days of inactivity'
+        stale-pr-message: 'Closing pull request after 90 days of inactivity'
+        stale-issue-label: 'issue-too-old'
+        stale-pr-label: 'pr-too-old'
