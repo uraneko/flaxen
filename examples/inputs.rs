@@ -23,9 +23,10 @@ fn main() {
 
     loop {
         let input = read(&mut reader, &mut i);
-        let ui = event(input, &mut ws);
+        print!("{:?}\r\n", input);
 
-        print!("{:?}\r\n{:?}\r\n", &ui.event, &ui.time);
+        let ui = event(input, &mut ws);
+        print!("{:?}\r\n{:?}\r\n\r\n", &ui.event, &ui.time);
 
         // print!("{:?}\r\n", &ui);
         _ = writer.flush();

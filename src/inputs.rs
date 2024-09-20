@@ -46,14 +46,18 @@ pub fn event(bytes: &[u8], ws: &mut winsize) -> InputEvent {
             event: UserInputEvent::MouseEvent(decode_mi(bytes).remove(0)),
         };
     } else if bytes.len() < 9 {
+        // BUG: 'لا' arabic char breaks the decode_ki function since it's 2 unicode chars combined char
+        // i could use decode_ki_kai and take the first char only, but that breaks the combined
+        // char
+        // TODO: implement unicode combined chars support
         // keyboard
         return InputEvent {
             time: SystemTime::now(),
             event: UserInputEvent::KbdEvent(decode_ki(bytes).unwrap()),
+            // event: UserInputEvent::KbdEvent(decode_ki_kai(bytes.to_vec()).remove(0).unwrap()),
         };
     } else {
         // paste
-
         return InputEvent {
             event: UserInputEvent::PasteEvent(PasteEvent(
                 decode_ki_kai(bytes.to_vec())
