@@ -3,8 +3,8 @@ use crate::render_pipeline;
 use crate::space::{area_conflicts, between, border_fit, Border, Padding};
 use crate::themes::Style;
 
-use std::any::type_name;
 use std::collections::{HashMap, HashSet};
+use std::io::Error;
 use std::io::StdoutLock;
 use std::io::Write;
 
@@ -35,6 +35,359 @@ pub(crate) enum Property {
     Container(Container),
     Text(Text),
     Map(HashMap<&'static str, Property>),
+}
+
+impl Property {
+    pub fn string(s: &str) -> Self {
+        Self::String(s.to_string())
+    }
+
+    pub fn re_string(self, s: &str) -> Result<Self, Error> {
+        if let Self::String(_) = self {
+            return Ok(Self::String(s.to_string()));
+        }
+
+        Err(Error::other("variant is not a String"))
+    }
+
+    pub fn str(&mut self, str: &str) -> Result<(), Error> {
+        if let Self::String(ref mut s) = self {
+            s.push_str(str);
+
+            return Ok(());
+        }
+
+        Err(Error::other("variant is not a String"))
+    }
+
+    pub fn char(&mut self, c: char) -> Result<(), Error> {
+        if let Self::String(ref mut s) = self {
+            s.push(c);
+
+            return Ok(());
+        }
+
+        Err(Error::other("variant is not a String"))
+    }
+
+    pub fn find(&self, pat: &str) -> Result<Option<usize>, Error>
+// NOTE: Pattern is unstable 
+// where
+    //     P: std::str::pattern::Pattern,
+    {
+        if let Self::String(ref s) = self {
+            return Ok(s.find(pat));
+        }
+
+        Err(Error::other("variant is not a String"))
+    }
+}
+
+impl Property {
+    pub fn int(i: i64) -> Self {
+        Self::Int(i)
+    }
+
+    pub fn re_int(self, i: i64) -> Result<Self, Error> {
+        if let Self::Int(_) = self {
+            return Ok(Self::Int(i));
+        }
+
+        Err(Error::other("variant is not a Int"))
+    }
+
+    pub fn int_add(&mut self, i: i64) -> Result<(), Error> {
+        if let Self::Int(ref mut int) = self {
+            *int += i;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Int"))
+    }
+
+    pub fn int_sub(&mut self, i: i64) -> Result<(), Error> {
+        if let Self::Int(ref mut int) = self {
+            *int -= i;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Int"))
+    }
+
+    pub fn int_mul(&mut self, i: i64) -> Result<(), Error> {
+        if let Self::Int(ref mut int) = self {
+            *int *= i;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Int"))
+    }
+
+    pub fn int_div(&mut self, i: i64) -> Result<(), Error> {
+        if let Self::Int(ref mut int) = self {
+            *int /= i;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Int"))
+    }
+}
+
+impl Property {
+    pub fn uint(u: u64) -> Self {
+        Self::UInt(u)
+    }
+
+    pub fn re_uint(self, u: u64) -> Result<Self, Error> {
+        if let Self::UInt(_) = self {
+            return Ok(Self::UInt(u));
+        }
+
+        Err(Error::other("variant is not a UInt"))
+    }
+
+    pub fn uint_add(&mut self, u: u64) -> Result<(), Error> {
+        if let Self::UInt(ref mut uint) = self {
+            *uint += u;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a UInt"))
+    }
+
+    pub fn uint_sub(&mut self, u: u64) -> Result<(), Error> {
+        if let Self::UInt(ref mut uint) = self {
+            *uint -= u;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a UInt"))
+    }
+
+    pub fn uint_mul(&mut self, u: u64) -> Result<(), Error> {
+        if let Self::UInt(ref mut uint) = self {
+            *uint *= u;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a UInt"))
+    }
+
+    pub fn uint_div(&mut self, u: u64) -> Result<(), Error> {
+        if let Self::UInt(ref mut uint) = self {
+            *uint /= u;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a UInt"))
+    }
+}
+
+impl Property {
+    pub fn float(f: f64) -> Self {
+        Self::Float(f)
+    }
+
+    pub fn re_float(self, f: f64) -> Result<Self, Error> {
+        if let Self::Float(_) = self {
+            return Ok(Self::Float(f));
+        }
+
+        Err(Error::other("variant is not a Float"))
+    }
+
+    pub fn float_add(&mut self, f: f64) -> Result<(), Error> {
+        if let Self::Float(ref mut float) = self {
+            *float += f;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Float"))
+    }
+
+    pub fn float_sub(&mut self, f: f64) -> Result<(), Error> {
+        if let Self::Float(ref mut float) = self {
+            *float -= f;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Float"))
+    }
+
+    pub fn float_mul(&mut self, f: f64) -> Result<(), Error> {
+        if let Self::Float(ref mut float) = self {
+            *float *= f;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Float"))
+    }
+
+    pub fn float_div(&mut self, f: f64) -> Result<(), Error> {
+        if let Self::Float(ref mut float) = self {
+            *float /= f;
+            return Ok(());
+        }
+        Err(Error::other("variant is not a Float"))
+    }
+}
+
+impl Property {
+    pub fn bool(b: bool) -> Self {
+        Self::Bool(b)
+    }
+
+    pub fn re_bool(self, b: bool) -> Result<Self, Error> {
+        if let Self::Bool(_) = self {
+            return Ok(Self::Bool(b));
+        }
+
+        Err(Error::other("variant is not a Bool"))
+    }
+
+    pub fn negate(&mut self) {
+        if let Self::Bool(ref mut b) = self {
+            *b = !*b;
+        }
+    }
+}
+
+// Vec variant methods
+impl Property {
+    pub fn vec(vec: Vec<Property>) -> Self {
+        Self::Vec(vec)
+    }
+
+    pub fn push(&mut self, p: Property) -> Result<(), Error> {
+        if let Self::Vec(ref mut vec) = self {
+            vec.push(p);
+            return Ok(());
+        }
+
+        Err(Error::other("variant is not a vector"))
+    }
+
+    pub fn put(&mut self, p: Property, idx: usize) -> Result<(), Error> {
+        if let Self::Vec(ref mut vec) = self {
+            if idx > vec.len() {
+                return Err(Error::other(
+                    format!("index {} out of bounds", idx).as_str(),
+                ));
+            }
+            vec.insert(idx, p);
+
+            return Ok(());
+        }
+
+        Err(Error::other("variant is not a vector"))
+    }
+
+    pub fn pull(&mut self, idx: usize) -> Result<Property, Error> {
+        if let Self::Vec(ref mut vec) = self {
+            if idx > vec.len() - 1 {
+                return Err(Error::other(
+                    format!("index {} out of bounds", idx).as_str(),
+                ));
+            }
+
+            return Ok(vec.remove(idx));
+        }
+
+        Err(Error::other("variant is not a vector"))
+    }
+
+    pub fn pop(&mut self) -> Result<Option<Property>, Error> {
+        if let Self::Vec(ref mut vec) = self {
+            return Ok(vec.pop());
+        }
+
+        Err(Error::other("variant is not a vector"))
+    }
+}
+
+// shared methods between map and vec and string
+impl Property {
+    pub fn clear(&mut self) -> Result<(), Error> {
+        if let Self::Vec(ref mut vec) = self {
+            vec.clear();
+            return Ok(());
+        } else if let Self::Map(ref mut map) = self {
+            map.clear();
+            return Ok(());
+        } else if let Self::String(ref mut s) = self {
+            s.clear();
+            return Ok(());
+        }
+
+        Err(Error::other("variant does not implement this method"))
+    }
+
+    pub fn len(&self) -> Result<usize, Error> {
+        if let Self::Vec(ref vec) = self {
+            return Ok(vec.len());
+        } else if let Self::Map(ref map) = self {
+            return Ok(map.len());
+        } else if let Self::String(ref s) = self {
+            return Ok(s.len());
+        }
+
+        Err(Error::other("variant does not implement this method"))
+    }
+
+    pub fn is_empty(&self) -> Result<bool, Error> {
+        if let Self::Vec(ref vec) = self {
+            return Ok(vec.is_empty());
+        } else if let Self::Map(ref map) = self {
+            return Ok(map.is_empty());
+        } else if let Self::String(ref s) = self {
+            return Ok(s.is_empty());
+        }
+
+        Err(Error::other("variant does not implement this method"))
+    }
+}
+
+// Map variant methods
+impl Property {
+    pub fn map(map: HashMap<&'static str, Property>) -> Self {
+        Self::Map(map)
+    }
+
+    pub fn insert(&mut self, k: &'static str, p: Property) -> Result<(), Error> {
+        if let Self::Map(ref mut map) = self {
+            map.insert(k, p);
+
+            return Ok(());
+        }
+
+        Err(Error::other("variant is not a map"))
+    }
+
+    pub fn remove(&mut self, k: &str) -> Result<Option<Property>, Error> {
+        if let Self::Map(ref mut map) = self {
+            return Ok(map.remove(k));
+        }
+
+        Err(Error::other("variant is not a map"))
+    }
+    pub fn contains(&self, k: &str) -> Result<bool, Error> {
+        if let Self::Map(ref map) = self {
+            return Ok(map.contains_key(k));
+        }
+
+        Err(Error::other("variant is not a map"))
+    }
+
+    pub fn get(&self, k: &str) -> Result<Option<&Property>, Error> {
+        if let Self::Map(ref map) = self {
+            return Ok(map.get(k));
+        }
+
+        Err(Error::other("vaiant is not a map"))
+    }
+
+    pub fn get_or_insert(
+        &mut self,
+        k: &'static str,
+        p: Property,
+    ) -> Result<Option<&Property>, Error> {
+        if let Ok(true) = self.contains(k) {
+            self.get(k)
+        } else {
+            self.insert(k, p);
+
+            Ok(None)
+        }
+    }
 }
 
 /// the wrpper struct holding all the program term objects
