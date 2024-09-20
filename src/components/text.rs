@@ -19,8 +19,6 @@ pub struct Text {
     /// decide which Text takes render priority in case of conflict
     /// think of it like css z-index
     pub layer: u8,
-    /// Text object name to be used for caching
-    pub name: String,
     /// unique id
     pub id: [u8; 3],
     /// temporary value holder for use when scorrling history
@@ -57,6 +55,7 @@ pub struct Text {
     pub bstyle: String,
     /// value style
     pub vstyle: String,
+    /// additiona custom properties, use sa needed
     pub properties: HashMap<&'static str, Property>,
 }
 
@@ -67,7 +66,6 @@ impl Text {
     /// takes most of Text's field values as arguments and returns a Text instance
     pub fn new(
         id: [u8; 3],
-        name: &str,
         x0: u16,
         y0: u16,
         ax0: u16,
@@ -75,13 +73,12 @@ impl Text {
         w: u16,
         h: u16,
         value: &[Option<char>],
-        interactable: bool,
+        interactive: bool,
         border: Border,
         padding: Padding,
     ) -> Text {
         Text {
             id,
-            name: name.to_string(),
             w,
             h,
             temp: vec![],
@@ -91,7 +88,7 @@ impl Text {
             ax0,
             ay0,
             properties: HashMap::new(),
-            change: interactable.then_some(1).unwrap_or(0),
+            change: interactive.then_some(1).unwrap_or(0),
             border,
             padding,
             value: {

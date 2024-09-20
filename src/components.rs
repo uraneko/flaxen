@@ -17,6 +17,10 @@ pub use container::Container;
 pub use term::Term;
 pub use text::Text;
 
+type TermTree = Vec<u8>;
+type ContainerTree = Vec<[u8; 2]>;
+type TextTree = Vec<[u8; 3]>;
+
 type Styles = Vec<Style>;
 
 #[derive(Debug)]
@@ -297,44 +301,78 @@ mod test_term {
         assert_eq!(term.active().unwrap(), [11, 9]);
     }
 
-    use crate::space::{Border, Padding};
+    use crate::space::{Area, Border, Padding, Pos};
 
     #[test]
     fn cursor() {
         let mut term = Term::new(5);
-        _ = term.container(&[0, 0], 56, 15, 35, 8, Border::None, Padding::None);
-        _ = term.input(&[0, 0, 0], "", 1, 1, 23, 2, Border::None, Padding::None);
+        _ = term.container(
+            &[0, 0],
+            Pos::Value(56),
+            Pos::Value(15),
+            Area::Values { w: 35, h: 8 },
+            Border::None,
+            Padding::None,
+        );
+        _ = term.input(
+            &[0, 0, 0],
+            Pos::Value(1),
+            Pos::Value(1),
+            Area::Values { w: 23, h: 2 },
+            Border::None,
+            Padding::None,
+        );
 
         let res = term.make_active(&[0, 0, 0]);
         assert_eq!([term.cx, term.cy], [56 + 1 + 1, 15 + 1]);
     }
 
     #[test]
-    fn interactables() {
+    fn interactives() {
         let mut term = Term::new(0);
-        _ = term.container(&[0, 0], 56, 15, 35, 18, Border::None, Padding::None);
-        _ = term.input(&[0, 0, 0], "", 1, 1, 2, 2, Border::None, Padding::None);
-        let res = term.input(&[0, 0, 2], "", 5, 5, 2, 2, Border::None, Padding::None);
-        println!("{:?}", res);
-        let res = term.nonedit(
-            &[0, 0, 1],
-            12,
-            12,
-            2,
-            2,
-            &[],
-            true,
+        _ = term.container(
+            &[0, 0],
+            Pos::Value(56),
+            Pos::Value(15),
+            Area::Values { w: 35, h: 18 },
+            Border::None,
+            Padding::None,
+        );
+        _ = term.input(
+            &[0, 0, 0],
+            Pos::Value(1),
+            Pos::Value(1),
+            Area::Values { w: 2, h: 2 },
+            Border::None,
+            Padding::None,
+        );
+        let res = term.input(
+            &[0, 0, 2],
+            Pos::Value(5),
+            Pos::Value(5),
+            Area::Values { w: 2, h: 2 },
             Border::None,
             Padding::None,
         );
         println!("{:?}", res);
+        let res = term.nonedit(
+            &[0, 0, 1],
+            Pos::Value(12),
+            Pos::Value(12),
+            Area::Values { w: 2, h: 2 },
+            Border::None,
+            Padding::None,
+            &[],
+            true,
+        );
+        println!("{:?}", res);
 
-        let inters = term.interactables();
+        let inters = term.interactives();
         assert_eq!(inters.len(), 3);
 
         term.make_active(&[0, 0, 1]);
-        assert_eq!(term.interactable_next(), Some([0, 0, 0]));
-        assert_eq!(term.interactable_prev(), Some([0, 0, 2]));
+        assert_eq!(term.interactive_next(), Some([0, 0, 0]));
+        assert_eq!(term.interactive_prev(), Some([0, 0, 2]));
 
         assert_eq!(term.changed().len(), 0);
         // simulate value change
@@ -346,7 +384,14 @@ mod test_term {
     fn objects() {
         let mut term = Term::new(0);
         term.push_container(Container::default());
-        term.container(&[0, 1], 56, 15, 35, 18, Border::None, Padding::None);
+        term.container(
+            &[0, 1],
+            Pos::Value(56),
+            Pos::Value(15),
+            Area::Values { w: 35, h: 18 },
+            Border::None,
+            Padding::None,
+        );
         assert_eq!(term.containers.len(), 2);
         term.push_input({
             let mut i = Text::default();
@@ -355,14 +400,13 @@ mod test_term {
         });
         term.nonedit(
             &[0, 1, 1],
-            12,
-            12,
-            2,
-            2,
-            &[],
-            true,
+            Pos::Value(12),
+            Pos::Value(12),
+            Area::Values { w: 2, h: 2 },
             Border::None,
             Padding::None,
+            &[],
+            true,
         );
 
         assert_eq!(term.tlen(), 2)
@@ -374,7 +418,14 @@ mod test_term {
     fn objects1() {
         let mut term = Term::new(0);
         term.push_container(Container::default());
-        term.container(&[0, 1], 56, 15, 35, 18, Border::None, Padding::None);
+        term.container(
+            &[0, 1],
+            Pos::Value(56),
+            Pos::Value(15),
+            Area::Values { w: 35, h: 18 },
+            Border::None,
+            Padding::None,
+        );
         assert_eq!(term.containers.len(), 2);
         term.push_input({
             let mut i = Text::default();
@@ -383,14 +434,13 @@ mod test_term {
         });
         term.nonedit(
             &[0, 1, 1],
-            12,
-            12,
-            2,
-            2,
-            &[],
-            true,
+            Pos::Value(12),
+            Pos::Value(12),
+            Area::Values { w: 2, h: 2 },
             Border::None,
             Padding::None,
+            &[],
+            true,
         );
 
         assert_eq!(term.tlen(), 2);
@@ -400,40 +450,66 @@ mod test_term {
     fn objects_count() {
         let mut term = Term::new(0);
 
-        term.container(&[0, 0], 5, 5, 10, 10, Border::None, Padding::None);
-        term.container(&[0, 1], 15, 15, 10, 10, Border::None, Padding::None);
-        term.container(&[0, 2], 25, 25, 10, 10, Border::None, Padding::None);
-
-        term.input(&[0, 2, 0], "", 1, 2, 2, 2, Border::None, Padding::None);
-        term.nonedit(
-            &[0, 1, 1],
-            2,
-            2,
-            2,
-            2,
-            &[],
-            true,
+        term.container(
+            &[0, 0],
+            Pos::Value(5),
+            Pos::Value(5),
+            Area::Values { w: 10, h: 10 },
+            Border::None,
+            Padding::None,
+        );
+        term.container(
+            &[0, 1],
+            Pos::Value(15),
+            Pos::Value(15),
+            Area::Values { w: 10, h: 10 },
+            Border::None,
+            Padding::None,
+        );
+        term.container(
+            &[0, 2],
+            Pos::Value(25),
+            Pos::Value(25),
+            Area::Values { w: 10, h: 10 },
             Border::None,
             Padding::None,
         );
 
-        term.nonedit(
-            &[0, 0, 1],
-            1,
-            1,
-            2,
-            2,
-            &[],
-            false,
+        term.input(
+            &[0, 2, 0],
+            Pos::Value(1),
+            Pos::Value(2),
+            Area::Values { w: 2, h: 2 },
             Border::None,
             Padding::None,
+        );
+        term.nonedit(
+            &[0, 1, 1],
+            Pos::Value(2),
+            Pos::Value(2),
+            Area::Values { w: 2, h: 2 },
+            Border::None,
+            Padding::None,
+            &[],
+            true,
+        );
+
+        term.nonedit(
+            &[0, 0, 1],
+            Pos::Value(1),
+            Pos::Value(1),
+            Area::Values { w: 2, h: 2 },
+            Border::None,
+            Padding::None,
+            &[],
+            false,
         );
 
         assert_eq!(term.tlen(), 3);
         assert_eq!(term.ilen(), 1);
         assert_eq!(term.nelen(), 2);
-        assert_eq!(term.chlen(), 2);
-        assert_eq!(term.nclen(), 1);
+        assert_eq!(term.itlen(), 2);
+        assert_eq!(term.nitlen(), 1);
     }
 }
 

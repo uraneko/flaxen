@@ -1,4 +1,5 @@
 use crate::components::{ComponentTree, Container, Term, Text};
+use crate::render_pipeline;
 
 use std::collections::HashMap;
 use std::{
@@ -102,17 +103,78 @@ pub(crate) fn border_fit(border: &Border, padding: &Padding, w: u16, h: u16) -> 
     true
 }
 
+// calculates the absolute origin of a text object in terminal display coordinates
+pub(crate) fn calc_text_abs_ori(
+    id: &[u8; 2],
+    ori: &[u16; 2],
+    ib: &Border,
+    ip: &Padding,
+    cont: &Container,
+) -> [u16; 2] {
+    let [ix0, iy0] = ori;
+    let [_, cpol, cpot, _, _, cpil, cpit, _] = render_pipeline::spread_padding(&cont.padding);
+    let cb = if let Border::None = cont.border { 0 } else { 1 };
+
+    let [_, ipol, ipot, _, _, ipil, ipit, _] = render_pipeline::spread_padding(&ip);
+    let ib = if let Border::None = ib { 0 } else { 1 };
+
+    [
+        cpol + cb + cpil + cont.x0 + ipol + ib + ipil + ix0 + 1,
+        cpot + cb + cpit + cont.y0 + ipot + ib + ipit + iy0,
+    ]
+}
+
+pub(crate) fn resolve_wh(border: &Border, padding: &Padding) -> [u16; 2] {
+    let bv = if let Border::None = border { 0 } else { 1 };
+    let [pw, ph] = if let Padding::Inner {
+        top,
+        bottom,
+        right,
+        left,
+    } = padding
+    {
+        [right + left, top + bottom]
+    } else if let Padding::Outer {
+        top,
+        bottom,
+        right,
+        left,
+    } = padding
+    {
+        [right + left, top + bottom]
+    } else if let Padding::InOut {
+        inner_top,
+        inner_bottom,
+        inner_right,
+        inner_left,
+        outer_top,
+        outer_bottom,
+        outer_right,
+        outer_left,
+    } = padding
+    {
+        [
+            inner_right + inner_left + outer_right + outer_left,
+            inner_top + inner_bottom + outer_top + outer_bottom,
+        ]
+    } else {
+        [0; 2]
+    };
+
+    [pw + bv * 2, ph + bv * 2]
+}
+
 // can be either vertical or horizontal
 // use instead of passing x0 and y0
-#[derive(Debug)]
-pub enum Position {
+#[derive(Debug, Clone)]
+pub enum Pos {
     Start,
     Center,
     End,
     Value(u16),
 }
 
-impl Position {
+impl Pos {
     // can be used for wither horizontal or vertical coordinate
     pub(super) fn position(self, value: u16) -> u16 {
         match self {
@@ -132,7 +194,7 @@ impl Position {
 
 pub enum Area {
     Zero,
-    Full,
+    Fill,
     Values { w: u16, h: u16 },
 }
 
@@ -155,7 +217,9 @@ impl Area {
 
     pub fn unwrap(self, values: [u16; 2]) -> [u16; 2] {
         match self {
-            Self::Full => values,
+            // FIXME: if area is fill, need to pass on the parent and
+            // substract the children areas
+            Self::Fill => values,
             Self::Zero => [0; 2],
             Self::Values { w, h } => [w, h],
         }
@@ -220,9 +284,10 @@ pub enum Border {
 }
 
 // FIXME: since the Manual variant takes 'static lifetimed strs
-// it can not be created nor its method manual() used inside a function that is not main (more or
-// less)
-
+// it can not be created nor its method manual() used with strs that are static like those gotten
+// from String::as_str
+// keep like this or make it take String
+// TODO: find out why i put copy trait on Border enum
 impl Border {
     /// creates a new Border with the None variant
     pub fn none() -> Self {

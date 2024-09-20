@@ -4,7 +4,9 @@ use std::io::Write;
 
 use crate::console::winsize::winsize;
 use crate::render_pipeline;
-use crate::space::{area_conflicts, between, border_fit, Border, Padding};
+use crate::space::{
+    area_conflicts, between, border_fit, calc_text_abs_ori, resolve_wh, Area, Border, Padding, Pos,
+};
 use crate::themes::Style;
 
 use super::Property;
@@ -187,7 +189,7 @@ impl Term {
     }
 
     /// returns immutable references to all text objects that can be interacted with
-    pub fn interactables(&self) -> Vec<&Text> {
+    pub fn interactives(&self) -> Vec<&Text> {
         self.containers
             .iter()
             .map(|c| c.items.iter().filter(|t| t.change > 0))
@@ -195,56 +197,56 @@ impl Term {
             .collect()
     }
 
-    /// returns an Optional of the next user interactable object
-    /// the next interactable is either the next inside the current container
-    /// or the first interactable inside the next container
-    /// or the first container's first interactable if the current one is the last of all
-    pub fn interactable_next(&self) -> Option<[u8; 3]> {
+    /// returns an Optional of the next user interactive object
+    /// the next interactive is either the next inside the current container
+    /// or the first interactive inside the next container
+    /// or the first container's first interactive if the current one is the last of all
+    pub fn interactive_next(&self) -> Option<[u8; 3]> {
         if self.active.is_none() {
             return None;
         }
 
-        let interactables = self.interactables();
+        let interactives = self.interactives();
 
-        let pos = interactables
+        let pos = interactives
             .iter()
             .position(|t| t.id == self.active.unwrap());
 
         assert!(pos.is_some());
 
-        if pos.unwrap() == interactables.len() - 1 {
-            return Some(interactables[0].id);
+        if pos.unwrap() == interactives.len() - 1 {
+            return Some(interactives[0].id);
         }
 
         let pos = pos.unwrap();
 
-        Some(interactables[(pos + 1) as usize].id)
+        Some(interactives[(pos + 1) as usize].id)
     }
 
-    /// returns an Optional of the prev user interactable object
-    /// the prev interactable is either the prev inside the current container
-    /// or the last interactable inside the prev container
-    /// or the last container's last interactable if the current one is the first of all
-    pub fn interactable_prev(&self) -> Option<[u8; 3]> {
+    /// returns an Optional of the prev user interactive object
+    /// the prev interactive is either the prev inside the current container
+    /// or the last interactive inside the prev container
+    /// or the last container's last interactive if the current one is the first of all
+    pub fn interactive_prev(&self) -> Option<[u8; 3]> {
         if self.active.is_none() {
             return None;
         }
 
-        let interactables = self.interactables();
+        let interactives = self.interactives();
 
-        let pos = interactables
+        let pos = interactives
             .iter()
             .position(|t| t.id == self.active.unwrap());
 
         assert!(pos.is_some());
 
         if pos.unwrap() == 0 {
-            return Some(interactables[interactables.len() - 1].id);
+            return Some(interactives[interactives.len() - 1].id);
         }
 
         let pos = pos.unwrap();
 
-        Some(interactables[(pos - 1) as usize].id)
+        Some(interactives[(pos - 1) as usize].id)
     }
 
     /// returns immutable references to all text objects that have had interactions since the last event loop
@@ -265,7 +267,7 @@ impl Term {
             .collect()
     }
 
-    /// resets all interactable objects' interactions value to 0
+    /// resets all interactive objects' interactions value to 0
     /// call this after every iteration of a program's event loop
     // BUG: this break the active object rendering for some reason
     pub fn reset_changed(&mut self) {
@@ -295,10 +297,13 @@ impl Term {
     pub fn container(
         &mut self,
         id: &[u8],
-        x0: u16,
-        y0: u16,
-        w: u16,
-        h: u16,
+        vpos: Pos,
+        hpos: Pos,
+        // x0: u16,
+        // y0: u16,
+        area: Area,
+        // w: u16,
+        // h: u16,
         border: Border,
         padding: Padding,
     ) -> Result<(), ComponentTreeError> {
@@ -307,8 +312,29 @@ impl Term {
             return Err(ComponentTreeError::BadID);
         }
 
-        if !border_fit(&border, &padding, w, h) {
-            return Err(ComponentTreeError::BoundsNotRespected);
+        let [wextra, hextra] = resolve_wh(&border, &padding);
+
+        let [w, h] = area.unwrap([self.w, self.h]);
+        let [w, h] = [w - wextra, h - hextra];
+
+        let [x0, y0] = hpos.clone().point(vpos.clone(), [self.w, self.h]);
+        let [x0, y0] = [
+            if let Pos::End = hpos {
+                x0 - w - wextra
+            } else {
+                x0
+            },
+            if let Pos::End = vpos {
+                y0 - h - hextra
+            } else {
+                y0
+            },
+        ];
+
+        if let Border::Manual { .. } = border {
+            if !border_fit(&border, &padding, self.w, self.h) {
+                return Err(ComponentTreeError::BoundsNotRespected);
+            }
         }
 
         let cont = Container::new([id[0], id[1]], x0, y0, w, h, border, padding);
@@ -404,30 +430,6 @@ impl Term {
     //     Ok(id)
     // }
 
-    // calculates the absolute origin of a text object in terminal display coordinates
-    fn calc_text_abs_ori(
-        &self,
-        id: &[u8; 2],
-        ori: &[u16; 2],
-        ib: &Border,
-        ip: &Padding,
-    ) -> [u16; 2] {
-        let [ix0, iy0] = ori;
-        let Some(cont) = self.container_ref(&id) else {
-            unreachable!("the container was already validated before getting here")
-        };
-        let [_, cpol, cpot, _, _, cpil, cpit, _] = render_pipeline::spread_padding(&cont.padding);
-        let cb = if let Border::None = cont.border { 0 } else { 1 };
-
-        let [_, ipol, ipot, _, _, ipil, ipit, _] = render_pipeline::spread_padding(&ip);
-        let ib = if let Border::None = ib { 0 } else { 1 };
-
-        [
-            cpol + cb + cpil + cont.x0 + ipol + ib + ipil + ix0 + 1,
-            cpot + cb + cpit + cont.y0 + ipot + ib + ipit + iy0,
-        ]
-    }
-
     /// pushes an existing input Text object to a child container of this Term
     pub fn push_input(&mut self, i: Text) -> Result<(), (Text, ComponentTreeError)> {
         if !self.has_container(&[i.id[0], i.id[1]]) || self.has_input(&i.id) || i.id[2] % 2 != 0 {
@@ -446,11 +448,13 @@ impl Term {
     pub fn input(
         &mut self,
         id: &[u8],
-        name: &str,
-        x0: u16,
-        y0: u16,
-        w: u16,
-        h: u16,
+        vpos: Pos,
+        hpos: Pos,
+        // x0: u16,
+        // y0: u16,
+        area: Area,
+        // w: u16,
+        // h: u16,
         border: Border,
         padding: Padding,
     ) -> Result<(), ComponentTreeError> {
@@ -463,17 +467,38 @@ impl Term {
             return Err(ComponentTreeError::BadID);
         }
 
-        if !border_fit(&border, &padding, w, h) {
-            return Err(ComponentTreeError::BoundsNotRespected);
+        let mut cont = self.container_mut(&[id[0], id[1]]).unwrap();
+        let contwh = [cont.w, cont.h];
+
+        let [wextra, hextra] = resolve_wh(&border, &padding);
+
+        let [w, h] = area.unwrap(contwh);
+        let [w, h] = [w - wextra, h - hextra];
+
+        if let Border::Manual { .. } = border {
+            if !border_fit(&border, &padding, w, h) {
+                return Err(ComponentTreeError::BoundsNotRespected);
+            }
         }
 
-        let [ax0, ay0] = self.calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding);
+        let [x0, y0] = hpos.clone().point(vpos.clone(), contwh);
+        let [x0, y0] = [
+            if let Pos::End = hpos {
+                x0 - w - wextra
+            } else {
+                x0
+            },
+            if let Pos::End = vpos {
+                y0 - h - hextra
+            } else {
+                y0
+            },
+        ];
 
-        let mut cont = self.container_mut(&[id[0], id[1]]).unwrap();
+        let [ax0, ay0] = calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding, &cont);
 
         let input = Text::new(
             [id[0], id[1], id[2]],
-            name,
             x0,
             y0,
             ax0,
@@ -522,14 +547,17 @@ impl Term {
     pub fn nonedit(
         &mut self,
         id: &[u8],
-        x0: u16,
-        y0: u16,
-        w: u16,
-        h: u16,
-        value: &[Option<char>],
-        interactable: bool,
+        vpos: Pos,
+        hpos: Pos,
+        // x0: u16,
+        // y0: u16,
+        area: Area,
+        // w: u16,
+        // h: u16,
         border: Border,
         padding: Padding,
+        value: &[Option<char>],
+        interactive: bool,
     ) -> Result<(), ComponentTreeError> {
         if id.len() > 3
             || id[2] % 2 == 0
@@ -540,9 +568,33 @@ impl Term {
             return Err(ComponentTreeError::BadID);
         }
 
-        if !border_fit(&border, &padding, w, h) {
-            return Err(ComponentTreeError::BoundsNotRespected);
+        let mut cont = self.container_mut(&[id[0], id[1]]).unwrap();
+        let contwh = [cont.w, cont.h];
+
+        let [wextra, hextra] = resolve_wh(&border, &padding);
+
+        let [w, h] = area.unwrap(contwh);
+        let [w, h] = [w - wextra, h - hextra];
+
+        if let Border::Manual { .. } = border {
+            if !border_fit(&border, &padding, w, h) {
+                return Err(ComponentTreeError::BoundsNotRespected);
+            }
         }
+
+        let [x0, y0] = hpos.clone().point(vpos.clone(), contwh);
+        let [x0, y0] = [
+            if let Pos::End = hpos {
+                x0 - w - wextra
+            } else {
+                x0
+            },
+            if let Pos::End = vpos {
+                y0 - h - hextra
+            } else {
+                y0
+            },
+        ];
 
         if value.len() as u16 > w * h {
             eprintln!(
@@ -553,13 +605,10 @@ impl Term {
             return Err(ComponentTreeError::BadValue);
         }
 
-        let [ax0, ay0] = self.calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding);
-
-        let mut cont = self.container_mut(&[id[0], id[1]]).unwrap();
+        let [ax0, ay0] = calc_text_abs_ori(&[id[0], id[1]], &[x0, y0], &border, &padding, &cont);
 
         let nonedit = Text::new(
             [id[0], id[1], id[2]],
-            "",
             x0,
             y0,
             ax0,
@@ -567,7 +616,7 @@ impl Term {
             w,
             h,
             value,
-            interactable,
+            interactive,
             border,
             padding,
         );
@@ -700,16 +749,16 @@ impl Term {
             .sum::<usize>()
     }
 
-    /// return the sum of all the interactable text objects inside this term
-    pub fn chlen(&self) -> usize {
+    /// return the sum of all the interactive text objects inside this term
+    pub fn itlen(&self) -> usize {
         self.containers
             .iter()
             .map(|c| c.items.iter().filter(|t| t.change != 0).count())
             .sum::<usize>()
     }
 
-    /// return the sum of all the non-interactable text objects inside this term
-    pub fn nclen(&self) -> usize {
+    /// return the sum of all the non-interactive text objects inside this term
+    pub fn nitlen(&self) -> usize {
         self.containers
             .iter()
             .map(|c| c.items.iter().filter(|t| t.change == 0).count())
