@@ -36,23 +36,14 @@ If the CI builds are passing then, the lib at least builds on Windows amd64 and 
 ✗ the core logic of the feature is not implemented yet
 
 ## Examples
-
-## Game
-```shell
-cargo run --example game
-```
-
-## Text Editor 
-```shell
-cargo run --example text_editor
-```
+Refer to the examples <a href= "examples/README.md">README</a>.
 
 ## Direction
 These features may be implemented next, if you want to know what's actively developed, check out the issues, prs and branches.
 
 - component overlay support 
 - window input events
-- better components api (e.g., Position::Center to center a component instead of having to pass parent.width / 2)
+- better components api (e.g., Pos::Center to center a component instead of having to pass parent.width / 2)
 - gamepad input support
 - themes support
 - better themes api
