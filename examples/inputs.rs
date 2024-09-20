@@ -40,6 +40,6 @@ fn main() {
     }
 
     disable_mouse_input(&mut writer);
-    cooked_mode(&ts);
+    cooked_mode(ts);
     _ = writer.write(b"\x1b[?1049l");
 }

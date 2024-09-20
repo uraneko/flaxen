@@ -26,6 +26,23 @@ impl Term {
         });
     }
 
+    /// renders only the demanded components' parts,
+    /// decides what to render based on some property fields's key and values for border, value and
+    /// all rendeing
+    /// if a child component has the key in its properties and the key value matches at least one
+    /// of br (border render), vr (value render) or ar (all render) then the matching part gets
+    /// rendered
+    /// implementing this deprecates live_render
+    pub fn partial_render(
+        &self,
+        writer: &mut StdoutLock,
+        key: &str,
+        br: Property,
+        vr: Property,
+        ar: Property,
+    ) {
+    }
+
     fn prepare(&self) -> (Vec<Option<char>>) {
         let mut lines: Vec<Option<char>> = vec![];
         lines.resize((self.w * self.h) as usize, None);
@@ -79,47 +96,48 @@ impl Term {
         let mut line = 0;
         let mut idx = 0;
 
-        for bidx in 0..cells.len() {
-            match cells[bidx] {
-                Some(c) => {
-                    s.clear();
-                    s.push(c);
-                    _ = writer.write(&s.as_bytes());
-                }
-                None => {
-                    _ = writer.write(b"\x1b[C");
-                }
-            };
-
-            // increment index after every cell write or movement
-            idx += 1;
-            // if we have reached end of line
-            if idx == self.w {
-                // we increment current line by one
-                line += 1;
-                // we reset idx
-                idx = 0;
-
-                // we move the cursor to the next line's first cell
-                writer.write(&[13, 10]);
+        cells.iter().for_each(|c| {
+            if let Some(ch) = c {
+                // print!("found char, ");
+                s.push(*ch);
+            } else {
+                // print!("found space, ");
+                s.push_str("\x1b[C");
             }
-        }
+            idx += 1;
+            if idx == self.w {
+                idx = 0;
+                line += 1;
+                if line < self.h - 1 {
+                    // println!("breaking line at {{{}}}", &s[s.len() - 1..s.len()]);
+                    s.push_str("\r\n");
+                }
+            }
+        });
 
         assert_eq!(line, self.h);
 
         let pos = format!("\x1b[{};{}f", self.cy, self.cx);
-        _ = writer.write(pos.as_bytes());
+        s.push_str(&pos);
+        // println!("{}", s);
+        _ = writer.write(s.as_bytes());
+        _ = writer.flush();
     }
 
     /// clears the whole terminal display
+    /// first implementation of clear
     pub fn clear(&self, writer: &mut StdoutLock) {
         writer.write(b"\x1b[H\x1b[J");
     }
 
-    /// places the cursor at the new position
-    pub fn place(&mut self, x: u16, y: u16) {
-        let esc_seq = format!("\x1b{};{}f", x, y);
-        self.cx = x;
-        self.cy = y;
+    /// clears the whole terminal display
+    /// second implementation of clear
+    pub fn clear1(&self, writer: &mut StdoutLock) {
+        let mut s = String::from("\x1b[H");
+        (0..self.h)
+            .into_iter()
+            .for_each(|_| s.push_str("\x1b[2K\x1b[C"));
+        s.push_str("\x1b[H");
+        writer.write(s.as_bytes());
     }
 }

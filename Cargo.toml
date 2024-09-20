@@ -12,6 +12,10 @@ exclude = ["Cargo.lock"]
 documentation = "https://docs.rs/ragout"
 
 [[example]]
+name = "render"
+path = "examples/render.rs"
+
+[[example]]
 name = "inputs"
 path = "examples/inputs.rs"
 

@@ -103,8 +103,8 @@ pub fn raw_mode() -> termios {
 
 /// disables raw mode to original flags configuration
 /// takes the original flags from the 'original' termios instance returned from enable_raw_mode
-pub fn cooked_mode(original: &termios) -> i32 {
-    unsafe { tcsetattr(STDIN_FILENO, TCSANOW, original) }
+pub fn cooked_mode(original: termios) -> i32 {
+    unsafe { tcsetattr(STDIN_FILENO, TCSANOW, &original) }
 }
 
 /// enables rare mode
