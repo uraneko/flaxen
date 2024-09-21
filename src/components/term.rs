@@ -34,8 +34,13 @@ pub struct Term {
     // pub padding: Padding,
     /// the active Text object of this Term
     /// it is the Text object that the Term recognizes the user to be interacting with currently
-    pub active: Option<[u8; 3]>,
+    pub on_focus: Option<[u8; 3]>,
+    /// properties that help with extended behavior for Terms
+    /// e.g., flex-direction: row
     pub properties: HashMap<&'static str, Property>,
+    /// attributes are like properties but they dont have values, only names
+    /// e.g., focusable
+    pub attributes: HashSet<&'static str>,
 }
 
 impl Term {
@@ -65,8 +70,9 @@ impl Term {
             cx: 0,
             cy: 0,
             containers: vec![],
-            active: None,
+            on_focus: None,
             properties: HashMap::new(),
+            attributes: HashSet::new(),
         }
     }
 
@@ -126,27 +132,9 @@ impl Term {
 }
 
 impl Term {
-    /// makes the text object with the given id the term's current active object
-    /// places cursor in the new position by calling sync_cursor
-    pub fn make_active(&mut self, id: &[u8; 3]) -> Result<(), ComponentTreeError> {
-        let condition = match id[2] % 2 == 0 {
-            true => self.has_input(&id),
-            false => self.has_nonedit(&id) && self.nonedit_ref(&id).unwrap().change > 0,
-        };
-
-        if !condition {
-            return Err(ComponentTreeError::BadID);
-        }
-
-        self.active = Some(*id);
-        self.sync_cursor();
-
-        Ok(())
-    }
-
     /// syncs the position of the cursor in the term display to match the data in the backend
     pub fn sync_cursor(&mut self) -> Result<(), ComponentTreeError> {
-        let id = self.active.unwrap();
+        let id = self.on_focus.unwrap();
         let text = if id[2] % 2 == 0 {
             self.input_ref(&id)
         } else {
@@ -162,16 +150,35 @@ impl Term {
         Ok(())
     }
 
+    /// makes the text object with the given id the term's current active object
+    /// places cursor in the new position by calling sync_cursor
+    // TODO: probably make the entire focus part of ragout-extended crate
+    pub fn focus(&mut self, id: &[u8; 3]) -> Result<(), ComponentTreeError> {
+        let condition = match id[2] % 2 == 0 {
+            true => self.has_input(&id),
+            false => self.has_nonedit(&id),
+        };
+
+        if !condition {
+            return Err(ComponentTreeError::BadID);
+        }
+
+        self.on_focus = Some(*id);
+        self.sync_cursor();
+
+        Ok(())
+    }
+
     /// returns a result of the active text object absolute orign coords
     /// or an error if it doesn't exist
-    pub fn active(&self) -> Result<[u16; 2], ComponentTreeError> {
+    pub fn focused(&self) -> Result<[u16; 2], ComponentTreeError> {
         // if self.active.is_none() {
         //     return Err(ComponentTreeError::BadID);
         // }
 
         // BUG: same bug unwrap_or skips unwrap and automaticall does or in tests
         // let id = self.active.unwrap_or(return Err(ComponentTreeError::BadID));
-        let id = match self.active {
+        let id = match self.on_focus {
             Some(id) => id,
             None => return Err(ComponentTreeError::BadID),
         };
@@ -186,94 +193,6 @@ impl Term {
                 Ok([t.ax0, t.ay0])
             }
         }
-    }
-
-    /// returns immutable references to all text objects that can be interacted with
-    pub fn interactives(&self) -> Vec<&Text> {
-        self.containers
-            .iter()
-            .map(|c| c.items.iter().filter(|t| t.change > 0))
-            .flatten()
-            .collect()
-    }
-
-    /// returns an Optional of the next user interactive object
-    /// the next interactive is either the next inside the current container
-    /// or the first interactive inside the next container
-    /// or the first container's first interactive if the current one is the last of all
-    pub fn interactive_next(&self) -> Option<[u8; 3]> {
-        if self.active.is_none() {
-            return None;
-        }
-
-        let interactives = self.interactives();
-
-        let pos = interactives
-            .iter()
-            .position(|t| t.id == self.active.unwrap());
-
-        assert!(pos.is_some());
-
-        if pos.unwrap() == interactives.len() - 1 {
-            return Some(interactives[0].id);
-        }
-
-        let pos = pos.unwrap();
-
-        Some(interactives[(pos + 1) as usize].id)
-    }
-
-    /// returns an Optional of the prev user interactive object
-    /// the prev interactive is either the prev inside the current container
-    /// or the last interactive inside the prev container
-    /// or the last container's last interactive if the current one is the first of all
-    pub fn interactive_prev(&self) -> Option<[u8; 3]> {
-        if self.active.is_none() {
-            return None;
-        }
-
-        let interactives = self.interactives();
-
-        let pos = interactives
-            .iter()
-            .position(|t| t.id == self.active.unwrap());
-
-        assert!(pos.is_some());
-
-        if pos.unwrap() == 0 {
-            return Some(interactives[interactives.len() - 1].id);
-        }
-
-        let pos = pos.unwrap();
-
-        Some(interactives[(pos - 1) as usize].id)
-    }
-
-    /// returns immutable references to all text objects that have had interactions since the last event loop
-    pub fn changed(&self) -> Vec<&Text> {
-        self.containers
-            .iter()
-            .map(|c| c.items.iter().filter(|t| t.change > 1))
-            .flatten()
-            .collect()
-    }
-
-    /// returns mutable references to all text objects that have had interactions since the last event loop
-    pub fn changed_mut(&mut self) -> Vec<&mut Text> {
-        self.containers
-            .iter_mut()
-            .map(|c| c.items.iter_mut().filter(|t| t.change > 1))
-            .flatten()
-            .collect()
-    }
-
-    /// resets all interactive objects' interactions value to 0
-    /// call this after every iteration of a program's event loop
-    // BUG: this break the active object rendering for some reason
-    pub fn reset_changed(&mut self) {
-        self.changed_mut().iter_mut().for_each(|t| {
-            t.change = 1;
-        });
     }
 }
 
@@ -506,7 +425,6 @@ impl Term {
             w,
             h,
             &[],
-            true,
             border,
             padding,
         );
@@ -557,7 +475,6 @@ impl Term {
         border: Border,
         padding: Padding,
         value: &[Option<char>],
-        interactive: bool,
     ) -> Result<(), ComponentTreeError> {
         if id.len() > 3
             || id[2] % 2 == 0
@@ -616,7 +533,6 @@ impl Term {
             w,
             h,
             value,
-            interactive,
             border,
             padding,
         );
@@ -749,21 +665,14 @@ impl Term {
             .sum::<usize>()
     }
 
-    /// return the sum of all the interactive text objects inside this term
-    pub fn itlen(&self) -> usize {
-        self.containers
-            .iter()
-            .map(|c| c.items.iter().filter(|t| t.change != 0).count())
-            .sum::<usize>()
+    /// counts the number of components in this term that have the given property 
+    pub fn plen(&self, p: &str) -> usize {
+        self.containers.iter().map(|c| 
+            if c.properties.contains_key(p) { 1 } else { 0 } + c.items.iter().filter(|t| t.properties.contains_key(p)).count()
+        ).sum()
     }
 
-    /// return the sum of all the non-interactive text objects inside this term
-    pub fn nitlen(&self) -> usize {
-        self.containers
-            .iter()
-            .map(|c| c.items.iter().filter(|t| t.change == 0).count())
-            .sum::<usize>()
-    }
+
 
     /// returns whether the term has a container with the provided id
     pub fn has_container(&self, id: &[u8; 2]) -> bool {

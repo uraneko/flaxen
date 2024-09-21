@@ -17,23 +17,27 @@ impl Term {
 
     /// renders only the text objects that have seen some value/border change since the last event
     /// loop iteration, either through user interaction or some background events being triggered
-    pub fn live_render(&self, writer: &mut StdoutLock) {
-        self.changed().iter().for_each(|t| match t.change {
-            2 => t.render_value(writer),
-            4 => t.render_border(writer),
-            6 => t.render(writer),
-            _ => unreachable!(""),
-        });
-    }
+    // DEPRECATED
+    // pub fn live_render(&self, writer: &mut StdoutLock) {
+    //     self.changed().iter().for_each(|t| match t.change {
+    //         2 => t.render_value(writer),
+    //         4 => t.render_border(writer),
+    //         6 => t.render(writer),
+    //         _ => unreachable!(""),
+    //     });
+    // }
+
+    // TODO: deprecate interactive in favor of focus property field
+    // which should be part of ragout-components crate
 
     /// renders only the demanded components' parts,
-    /// decides what to render based on some property fields's key and values for border, value and
+    /// decides what to render based on given property fields's key and values for border, value and
     /// all rendeing
     /// if a child component has the key in its properties and the key value matches at least one
     /// of br (border render), vr (value render) or ar (all render) then the matching part gets
     /// rendered
-    /// implementing this deprecates live_render
-    pub fn partial_render(
+
+    pub fn property_render(
         &self,
         writer: &mut StdoutLock,
         key: &str,
@@ -41,7 +45,58 @@ impl Term {
         vr: Property,
         ar: Property,
     ) {
+        self.containers.iter().for_each(|c| {
+            if let Some(val) = c.properties.get(key) {
+                match val {
+                    br => {
+                        c.render_border(writer);
+                        c.items.iter().for_each(|t| {
+                            if let Some(val) = t.properties.get(key) {
+                                match val {
+                                    br => t.render_border(writer),
+                                    vr => t.render_value(writer),
+                                    ar => t.render(writer),
+                                }
+                            }
+                        });
+                    }
+                    vr => c.render_value(writer),
+                    ar => c.render(writer),
+                }
+            } else {
+                c.items.iter().for_each(|t| {
+                    if let Some(val) = t.properties.get(key) {
+                        match val {
+                            br => t.render_border(writer),
+                            vr => t.render_value(writer),
+                            ar => t.render(writer),
+                        }
+                    }
+                });
+            }
+        })
     }
+
+    // TODO: add components fields: value_dirty and border_dirty
+    // + make value and border editable only through certain api methods
+
+    // NOTE: this method renders the entire component; both border and value
+    // since it has no way of telling which part to render
+    pub fn attribute_render(&self, writer: &mut StdoutLock, attr: &str) {
+        self.containers.iter().for_each(|c| {
+            if c.attributes.contains(attr) {
+                c.render(writer);
+            } else {
+                c.items.iter().for_each(|t| {
+                    if t.attributes.contains(attr) {
+                        t.render(writer);
+                    }
+                });
+            }
+        });
+    }
+
+    pub fn partial_render(&self, writer: &mut StdoutLock) {}
 
     fn prepare(&self) -> (Vec<Option<char>>) {
         let mut lines: Vec<Option<char>> = vec![];

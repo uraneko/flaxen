@@ -42,7 +42,6 @@ fn main() {
         Border::uniform('n'),
         Padding::None,
         &vec![],
-        false,
     );
     println!("{:?}", term.containers[0].items.len());
     println!("{:?}", res2);

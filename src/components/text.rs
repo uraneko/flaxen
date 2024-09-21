@@ -49,14 +49,13 @@ pub struct Text {
     pub border: Border,
     /// padding value
     pub padding: Padding,
-    /// is this Text pbject changeable and if so did it have any changes to at least value or border
-    pub change: u8,
     /// border style
     pub bstyle: String,
     /// value style
     pub vstyle: String,
-    /// additiona custom properties, use sa needed
+
     pub properties: HashMap<&'static str, Property>,
+    pub attributes: HashSet<&'static str>,
 }
 
 // NOTE: Inputs can only have pair IDs
@@ -73,7 +72,6 @@ impl Text {
         w: u16,
         h: u16,
         value: &[Option<char>],
-        interactive: bool,
         border: Border,
         padding: Padding,
     ) -> Text {
@@ -88,7 +86,7 @@ impl Text {
             ax0,
             ay0,
             properties: HashMap::new(),
-            change: interactive.then_some(1).unwrap_or(0),
+            attributes: HashSet::new(),
             border,
             padding,
             value: {

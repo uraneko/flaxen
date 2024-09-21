@@ -359,6 +359,7 @@ impl Property {
 
         Err(Error::other("variant is not a map"))
     }
+
     pub fn contains(&self, k: &str) -> Result<bool, Error> {
         if let Self::Map(ref map) = self {
             return Ok(map.contains_key(k));
@@ -638,20 +639,18 @@ mod test_term {
         // return to this and make it a proper check of those methods
         [ne.ax0, ne.ay0] = [ne.x0 + c.x0, ne.y0 + c.y0];
 
-        ne.change = 1;
-
         let id = ne.id;
 
         term.push_container(c);
         term.push_nonedit(ne);
 
-        let res = term.make_active(&[5, 1, 8]);
+        let res = term.focus(&[5, 1, 8]);
         assert!(res.is_err());
 
-        let res = term.make_active(&id);
+        let res = term.focus(&id);
         assert!(res.is_ok());
-        assert_eq!(term.active.unwrap(), id);
-        assert_eq!(term.active().unwrap(), [11, 9]);
+        assert_eq!(term.on_focus.unwrap(), id);
+        assert_eq!(term.focused().unwrap(), [11, 9]);
     }
 
     use crate::space::{Area, Border, Padding, Pos};
@@ -676,61 +675,8 @@ mod test_term {
             Padding::None,
         );
 
-        let res = term.make_active(&[0, 0, 0]);
+        let res = term.focus(&[0, 0, 0]);
         assert_eq!([term.cx, term.cy], [56 + 1 + 1, 15 + 1]);
-    }
-
-    #[test]
-    fn interactives() {
-        let mut term = Term::new(0);
-        _ = term.container(
-            &[0, 0],
-            Pos::Value(56),
-            Pos::Value(15),
-            Area::Values { w: 35, h: 18 },
-            Border::None,
-            Padding::None,
-        );
-        _ = term.input(
-            &[0, 0, 0],
-            Pos::Value(1),
-            Pos::Value(1),
-            Area::Values { w: 2, h: 2 },
-            Border::None,
-            Padding::None,
-        );
-        let res = term.input(
-            &[0, 0, 2],
-            Pos::Value(5),
-            Pos::Value(5),
-            Area::Values { w: 2, h: 2 },
-            Border::None,
-            Padding::None,
-        );
-        println!("{:?}", res);
-        let res = term.nonedit(
-            &[0, 0, 1],
-            Pos::Value(12),
-            Pos::Value(12),
-            Area::Values { w: 2, h: 2 },
-            Border::None,
-            Padding::None,
-            &[],
-            true,
-        );
-        println!("{:?}", res);
-
-        let inters = term.interactives();
-        assert_eq!(inters.len(), 3);
-
-        term.make_active(&[0, 0, 1]);
-        assert_eq!(term.interactive_next(), Some([0, 0, 0]));
-        assert_eq!(term.interactive_prev(), Some([0, 0, 2]));
-
-        assert_eq!(term.changed().len(), 0);
-        // simulate value change
-        term.input_mut(&[0, 0, 2]).unwrap().change = 2;
-        assert_eq!(term.changed().len(), 1);
     }
 
     #[test]
@@ -746,11 +692,7 @@ mod test_term {
             Padding::None,
         );
         assert_eq!(term.containers.len(), 2);
-        term.push_input({
-            let mut i = Text::default();
-            i.change = 1;
-            i
-        });
+        term.push_input({ Text::default() });
         term.nonedit(
             &[0, 1, 1],
             Pos::Value(12),
@@ -759,7 +701,6 @@ mod test_term {
             Border::None,
             Padding::None,
             &[],
-            true,
         );
 
         assert_eq!(term.tlen(), 2)
@@ -780,11 +721,7 @@ mod test_term {
             Padding::None,
         );
         assert_eq!(term.containers.len(), 2);
-        term.push_input({
-            let mut i = Text::default();
-            i.change = 1;
-            i
-        });
+        term.push_input({ Text::default() });
         term.nonedit(
             &[0, 1, 1],
             Pos::Value(12),
@@ -793,7 +730,6 @@ mod test_term {
             Border::None,
             Padding::None,
             &[],
-            true,
         );
 
         assert_eq!(term.tlen(), 2);
@@ -844,7 +780,6 @@ mod test_term {
             Border::None,
             Padding::None,
             &[],
-            true,
         );
 
         term.nonedit(
@@ -855,14 +790,13 @@ mod test_term {
             Border::None,
             Padding::None,
             &[],
-            false,
         );
 
         assert_eq!(term.tlen(), 3);
         assert_eq!(term.ilen(), 1);
         assert_eq!(term.nelen(), 2);
-        assert_eq!(term.itlen(), 2);
-        assert_eq!(term.nitlen(), 1);
+        // assert_eq!(term.itlen(), 2);
+        // assert_eq!(term.nitlen(), 1);
     }
 }
 

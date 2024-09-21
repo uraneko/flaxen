@@ -40,6 +40,7 @@ pub struct Container {
     /// border style
     pub bstyle: String,
     pub properties: HashMap<&'static str, Property>,
+    pub attributes: HashSet<&'static str>,
 }
 
 impl std::fmt::Display for Container {
@@ -69,10 +70,11 @@ impl Container {
             x0,
             layer: 0,
             y0,
-            properties: HashMap::new(),
             border,
             padding,
             bstyle: "".to_string(),
+            properties: HashMap::new(),
+            attributes: HashSet::new(),
         }
     }
 

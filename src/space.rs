@@ -164,13 +164,33 @@ pub(crate) fn resolve_wh(border: &Border, padding: &Padding) -> [u16; 2] {
     [pw + bv * 2, ph + bv * 2]
 }
 
+// TODO!
+pub enum DisplayLayout {
+    /// hidden component
+    None,
+    /// no additional layout rules are applied on the children
+    Canvas,
+    /// children are displayed in a flex style
+    /// for more customization add a "flex" map property to this component
+    /// with the needed properties
+    Flex,
+    /// children are displayed in a grid style
+    /// for more customization add a "grid" map property to this component
+    /// with the needed properties
+    Grid,
+}
+
 // can be either vertical or horizontal
 // use instead of passing x0 and y0
 #[derive(Debug, Clone)]
 pub enum Pos {
+    /// position component at the start of parent's area, either vertically or horizontally
     Start,
+    /// center component inisde parent's area, either vertically or horizontally
     Center,
+    /// position component at the end of parent's area, either vertically or horizontally
     End,
+    /// custom component position, can be vertical or horizontal
     Value(u16),
 }
 
