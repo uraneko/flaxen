@@ -2,7 +2,7 @@ use ragout::console::raw_mode::{cooked_mode, raw_mode};
 use ragout::console::winsize::winsize;
 use ragout::inputs::keyboard::{Char, KbdEvent, Modifiers};
 use ragout::inputs::mouse::{disable_mouse_input, enable_mouse_input};
-use ragout::inputs::{event, read, UserInputEvent};
+use ragout::inputs::{event, read, Interaction};
 
 use std::io::Write;
 
@@ -31,7 +31,7 @@ fn main() {
         // print!("{:?}\r\n", &ui);
         _ = writer.flush();
 
-        if let UserInputEvent::KbdEvent(KbdEvent {
+        if let Interaction::KbdEvent(KbdEvent {
             char: Char::Char('c'),
             modifiers: Modifiers(2),
         }) = ui.event

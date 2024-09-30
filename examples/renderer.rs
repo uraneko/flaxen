@@ -3,7 +3,7 @@ use ragout::console::{
     cooked_mode, enter_alternate_screen, leave_alternate_screen, raw_mode, workers,
 };
 use ragout::frames;
-use ragout::space::{Area, Border, Padding, Pos};
+use ragout::space::{border::Border, padding::Padding, Area, Pos};
 
 use std::io::Write;
 

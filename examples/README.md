@@ -3,14 +3,54 @@
 The single file examples showcase how to use 1 or 2 features. Meanwhile, the crate examples are more complicated and make something with a little more usefulness.
 
 ## Single File Examples
-### Inputs 
-Prints input events on the screen as they come.
+### inputs 
+Prints input events on the screen as they come. (blocking)
+
+```bash
+cargo run --example inputs
+```
 
 ### components
-Creates some components and manipulates them.
+Basic components usage and manipulation
 
-### Rendering
+```bash
+cargo run --example components
+```
+
+### renderer
 Creates some components and renders them on the screen.
+
+```bash
+cargo run --example renderer
+```
+
+### layout
+Basic use of the Layout enum
+
+```bash
+cargo run --example layout
+```
+
+### overlay
+Basic example of the overlay behavior of components
+
+```bash
+cargo run --example overlay
+```
+
+### styles 
+Demonstrates the Style struct features
+
+```bash
+cargo run --example styles
+```
+
+### themes
+Showcases basic theme use and application
+
+```bash
+cargo run --example themes
+```
 
 ## Crate Examples
 ### Game

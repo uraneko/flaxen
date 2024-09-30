@@ -12,12 +12,32 @@ exclude = ["Cargo.lock"]
 documentation = "https://docs.rs/ragout"
 
 [[example]]
-name = "render"
-path = "examples/render.rs"
-
-[[example]]
 name = "inputs"
 path = "examples/inputs.rs"
+
+[[example]]
+name = "components"
+path = "examples/components.rs"
+
+[[example]]
+name = "renderer"
+path = "examples/renderer.rs"
+
+[[example]]
+name = "overlay"
+path = "examples/overlay.rs"
+
+[[example]]
+name = "layout"
+path = "examples/layout.rs"
+
+[[example]]
+name = "themes"
+path = "examples/themes.rs"
+
+[[example]]
+name = "styles"
+path = "examples/styles.rs"
 
 [package.metadata.docs.rs]
 all-features = true

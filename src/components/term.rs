@@ -5,19 +5,21 @@ use std::io::Write;
 use crate::console::winsize::winsize;
 use crate::render_pipeline;
 use crate::space::{
-    area_conflicts, between, border_fit, calc_text_abs_ori, resolve_wh, Area, Border, Padding, Pos,
+    area_conflicts, between,  border_fit, calc_text_abs_ori, resolve_wh, Area, border::Border, padding::Padding, Pos,
 };
+use crate::layout::Layout;
 use crate::themes::Style;
 
+use super::{ContainerMeta, NonEditMeta, InputMeta};
 use super::Property;
-use super::{ComponentTreeError, SpaceError};
+use super::{ComponentTreeError, SpaceError, IdError};
 use super::{Container, Text};
 
 /// Term object that is basically the overall wrapper around back end for the terminal display
 #[derive(Debug, Default)]
 pub struct Term {
-    /// are containers in this Term allowed to overlap with each other
-    pub overlay: bool,
+    /// the layout
+    pub layout: Layout,
     /// this Term's id
     pub id: u8,
     /// the width of the terminal window
@@ -34,7 +36,7 @@ pub struct Term {
     // pub padding: Padding,
     /// the active Text object of this Term
     /// it is the Text object that the Term recognizes the user to be interacting with currently
-    pub on_focus: Option<[u8; 3]>,
+    pub focused: Option<[u8; 3]>,
     /// properties that help with extended behavior for Terms
     /// e.g., flex-direction: row
     pub properties: HashMap<&'static str, Property>,
@@ -57,23 +59,19 @@ impl Term {
     /// the term method would always validate the the new id before creating a term inside the tree
     /// if this function is called alongside tree's push_term() method then validating this term's
     /// id becomes the caller's job
-    pub fn new(id: u8) -> Self {
-        let ws = winsize::from_ioctl();
-
+    pub fn new(id: u8, w: u16, h: u16) -> Self {
         Term {
             id,
-            w: ws.cols(),
-            h: ws.rows(),
-            // padding: Padding::None,
-            // border: Border::Uniform('*'),
-            overlay: false,
-            cx: 0,
-            cy: 0,
-            containers: vec![],
-            on_focus: None,
-            properties: HashMap::new(),
-            attributes: HashSet::new(),
+            w,
+            h,
+            ..Self::default()
         }
+    }
+
+    pub fn with_area(id: u8) -> Self  {
+        let ws = winsize::from_ioctl();
+        Term {
+            id, w: ws.cols(), h: ws.rows(), ..Default::default()        }
     }
 
     // since overlay is not implemented yet, this doesn't assign anything but just checks that the
@@ -87,12 +85,6 @@ impl Term {
         let [x0, y0] = [cont.x0, cont.y0];
         let [w, h] = cont.decorate();
 
-        // check if new area + padding + border is bigger than term area
-        // FIX: the first area check is wrong
-        // it should be:
-        // if overlay in parent is on then current check
-        // else parent area - all children area check against new container area
-
         if self.w * self.h < w * h
             || x0 > self.w
             || y0 > self.h
@@ -101,7 +93,7 @@ impl Term {
             || x0 + w > self.w
             || y0 + h > self.h
         {
-            return Err(SpaceError::E1);
+            return Err(SpaceError::AreaOutOfBounds);
         }
 
         let mut e = 0;
@@ -119,7 +111,7 @@ impl Term {
         });
 
         if e == 1 {
-            return Err(SpaceError::E1);
+            return Err(SpaceError::OriginOutOfBounds);
         }
 
         Ok(())
@@ -134,7 +126,7 @@ impl Term {
 impl Term {
     /// syncs the position of the cursor in the term display to match the data in the backend
     pub fn sync_cursor(&mut self) -> Result<(), ComponentTreeError> {
-        let id = self.on_focus.unwrap();
+        let id = self.focused.unwrap();
         let text = if id[2] % 2 == 0 {
             self.input_ref(&id)
         } else {
@@ -163,7 +155,7 @@ impl Term {
             return Err(ComponentTreeError::BadID);
         }
 
-        self.on_focus = Some(*id);
+        self.focused = Some(*id);
         self.sync_cursor();
 
         Ok(())
@@ -178,7 +170,7 @@ impl Term {
 
         // BUG: same bug unwrap_or skips unwrap and automaticall does or in tests
         // let id = self.active.unwrap_or(return Err(ComponentTreeError::BadID));
-        let id = match self.on_focus {
+        let id = match self.focused {
             Some(id) => id,
             None => return Err(ComponentTreeError::BadID),
         };
@@ -215,18 +207,19 @@ impl Term {
     /// overlay is turned off for the Term
     pub fn container(
         &mut self,
-        id: &[u8],
+        id: &[u8; 2],
         vpos: Pos,
         hpos: Pos,
         // x0: u16,
         // y0: u16,
+        shape: Polygon, 
         area: Area,
         // w: u16,
         // h: u16,
         border: Border,
         padding: Padding,
     ) -> Result<(), ComponentTreeError> {
-        if id.len() > 2 || self.has_container(&[id[0], id[1]]) {
+        if self.is_valid_container_id(&id) {
             eprintln!("bad id");
             return Err(ComponentTreeError::BadID);
         }
@@ -265,6 +258,10 @@ impl Term {
         self.containers.push(cont);
 
         Ok(())
+    }
+
+    pub fn container_from_meta(&mut self, meta: &mut ContainerMeta) {
+        self.containers.push(meta.container());
     }
 
     /// pushes an existing Container to this Term's container vector
@@ -366,33 +363,43 @@ impl Term {
     /// ...
     pub fn input(
         &mut self,
-        id: &[u8],
+        id: &[u8; 3],
         vpos: Pos,
         hpos: Pos,
         // x0: u16,
         // y0: u16,
+        shape: Polygon, 
         area: Area,
         // w: u16,
         // h: u16,
         border: Border,
         padding: Padding,
     ) -> Result<(), ComponentTreeError> {
-        if id.len() > 3
-            || id[2] % 2 != 0
-            || !self.has_container(&[id[0], id[1]])
-            || self.has_input(&[id[0], id[1], id[2]])
-        {
+        if !self.is_valid_input_id(&id) {
             eprintln!("bad id: {:?}", id);
-            return Err(ComponentTreeError::BadID);
+            return Err(ComponentTreeError::IdError(IdError::IdAlreadyTaken));
         }
+
+
+        // let [x0, y0] = [text.x0, text.y0];
+        // let [w, h] = text.decorate();
+
 
         let mut cont = self.container_mut(&[id[0], id[1]]).unwrap();
         let contwh = [cont.w, cont.h];
 
         let [wextra, hextra] = resolve_wh(&border, &padding);
 
+
         let [w, h] = area.unwrap(contwh);
         let [w, h] = [w - wextra, h - hextra];
+        let [x0, y0] = hpos.clone().point(vpos.clone(), [w, h]);
+
+        if cont.area_out_of_bounds(&[w,h]) {
+            return Err(ComponentTreeError::SpaceError(SpaceError::AreaOutOfBounds));
+        } else if cont.origin_out_of_bounds(&[w,h], &[x0, y0] ) {
+            return Err(ComponentTreeError::SpaceError(SpaceError::OriginOutOfBounds));
+        }
 
         if let Border::Manual { .. } = border {
             if !border_fit(&border, &padding, w, h) {
@@ -438,6 +445,18 @@ impl Term {
         Ok(())
     }
 
+    pub fn input_from_meta(&mut self, meta: &mut InputMeta) -> Result<(), ComponentTreeError> {
+        let res = self.container_mut(&meta.cid());
+        if res.is_none() {
+            return Err(ComponentTreeError::BadID);
+        }
+
+        let cont = res.unwrap();
+        cont.items.push(meta.input());
+
+        Ok(())
+    }
+
     /// takes only term and container ids and automatically assigns an id for the input
     /// returns the full new input id
     /// DONT USE FOR NOW
@@ -464,11 +483,12 @@ impl Term {
 
     pub fn nonedit(
         &mut self,
-        id: &[u8],
+        id: &[u8; 3],
         vpos: Pos,
         hpos: Pos,
         // x0: u16,
         // y0: u16,
+        shape: Polygon, 
         area: Area,
         // w: u16,
         // h: u16,
@@ -476,11 +496,7 @@ impl Term {
         padding: Padding,
         value: &[Option<char>],
     ) -> Result<(), ComponentTreeError> {
-        if id.len() > 3
-            || id[2] % 2 == 0
-            || !self.has_container(&[id[0], id[1]])
-            || self.has_nonedit(&[id[0], id[1], id[2]])
-        {
+        if !self.is_valid_nonedit_id(&id) {
             eprintln!("bad id");
             return Err(ComponentTreeError::BadID);
         }
@@ -542,6 +558,18 @@ impl Term {
         }
 
         cont.items.push(nonedit);
+
+        Ok(())
+    }
+
+    pub fn nonedit_from_meta(&mut self, meta: &mut NonEditMeta) -> Result<(), ComponentTreeError>{
+        let res = self.container_mut(&meta.cid());
+        if res.is_none() {
+            return Err(ComponentTreeError::BadID);
+        }
+
+        let cont = res.unwrap();
+        cont.items.push(meta.nonedit(vec![]));
 
         Ok(())
     }
@@ -709,8 +737,8 @@ impl Term {
         }
     }
 
-    fn assign_container_id(&self, term: u8) -> u8 {
         // NOTE: this method does not check the validity of the provided term id
+    fn assign_container_id(&self, term: u8) -> u8 {
 
         let mut id = 0;
         for cont in &self.containers {
@@ -724,8 +752,8 @@ impl Term {
         id
     }
 
-    fn assign_input_id(&self, term: u8, cont: u8) -> u8 {
         // NOTE: this method does not check the validity of the provided term and container ids
+    fn assign_input_id(&self, term: u8, cont: u8) -> u8 {
         let cont = self.container_ref(&[term, cont]).unwrap();
 
         let mut id = 0;
@@ -741,8 +769,8 @@ impl Term {
         id
     }
 
-    fn assign_nonedit_id(&self, term: u8, cont: u8) -> u8 {
         // NOTE: this method does not check the validity of the provided term and container ids
+    fn assign_nonedit_id(&self, term: u8, cont: u8) -> u8 {
         let cont = self.container_ref(&[term, cont]).unwrap();
 
         let mut id = 0;

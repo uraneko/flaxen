@@ -3,7 +3,7 @@ use std::io::{StdoutLock, Write};
 use std::str::Chars;
 
 use crate::components::*;
-use crate::space::{Border, Padding};
+use crate::space::{border::Border, padding::Padding};
 use crate::themes::Style;
 
 pub mod container;

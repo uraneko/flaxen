@@ -3,8 +3,11 @@ use std::io::StdoutLock;
 use std::io::Write;
 
 use crate::console::winsize::winsize;
+use crate::layout::Layout;
 use crate::render_pipeline;
-use crate::space::{area_conflicts, between, border_fit, Border, Padding};
+use crate::space::{
+    area_conflicts, between, border::Border, border_fit, padding::Padding, Area, Pos,
+};
 use crate::themes::Style;
 
 use super::Property;
@@ -15,8 +18,6 @@ use super::{Term, Text};
 /// and direct parents of the Text objects
 #[derive(Debug, Default)]
 pub struct Container {
-    /// allows overlaying inside this container
-    pub overlay: bool,
     /// the layer of this container in terminal
     /// decide which container takes render priority in case of conflict
     /// think of it like css z-index
@@ -37,8 +38,10 @@ pub struct Container {
     pub border: Border,
     /// padding value
     pub padding: Padding,
+    // the following field has now become part of properties
     /// border style
     pub bstyle: String,
+    pub layout: Layout,
     pub properties: HashMap<&'static str, Property>,
     pub attributes: HashSet<&'static str>,
 }
@@ -64,11 +67,11 @@ impl Container {
         Container {
             id,
             w,
-            overlay: false,
             items: vec![],
             h,
             x0,
             layer: 0,
+            layout: Layout::Canvas,
             y0,
             border,
             padding,
@@ -77,6 +80,8 @@ impl Container {
             attributes: HashSet::new(),
         }
     }
+
+    // TODO: bstyle, vstyle and layer should be properties
 
     // fn with_layer(id: [u8; 2], layer: u8) -> Self {
     //     Container {
@@ -110,10 +115,6 @@ impl Container {
         let [w, h] = text.decorate();
 
         // check if new area is bigger than parent container area
-        // FIXME: the first area check is wrong
-        // it should be:
-        // if overlay in parent is on then current check
-        // else parent area - all children area check against new container area
         if self.w * self.h < w * h
             || x0 > self.w
             || y0 > self.h
@@ -123,26 +124,25 @@ impl Container {
             || y0 + h > self.h
         {
             // println!("0\r\n{x0} + {w} > {}\r\n{y0} + {h} > {}", self.w, self.h);
-            return Err(SpaceError::E1);
+            return Err(SpaceError::AreaOutOfBounds);
         }
 
         let mut e = 0;
 
         self.items.iter().for_each(|t| {
-            if e == 0 {
-                let [top, right, bottom, left] =
-                    area_conflicts(x0, y0, text.w, text.h, t.x0, t.y0, t.w, t.h);
-                // conflict case
-                if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
-                    // TODO: actually handle overlay logic
-                    e = 1;
-                }
+            let [top, right, bottom, left] =
+                area_conflicts(x0, y0, text.w, text.h, t.x0, t.y0, t.w, t.h);
+            // conflict case
+            if (left > 0 || right < 0) && (top > 0 || bottom < 0) {
+                // TODO: actually handle overlay logic
+                let e = self.shift_no_overlay(top, right, bottom, left);
+                if e != 0 {}
             }
         });
 
         if e == 1 {
             // println!("1");
-            return Err(SpaceError::E1);
+            return Err(SpaceError::AreaOutOfBounds);
         }
 
         Ok(())

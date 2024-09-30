@@ -422,4 +422,37 @@ mod styles {
     }
 }
 
-fn theme(value: &str, pats: &[(&str, &str)]) {}
+// TODO: add some template theme functions to ragout-extended
+// NOTE: border/text themes should be part of the properties and attributes functionalities
+// example custom theme on some component text/border value
+fn theme(value: &[char], styles: &[Style]) -> String {
+    // example custom theme
+    let mut idx = 0;
+    value
+        .into_iter()
+        .map(|c| {
+            let mut sc = styles[idx].style();
+            sc.push(*c);
+            if idx == styles.len() - 1 {
+                idx = 0
+            } else {
+                idx += 1;
+            }
+
+            sc
+        })
+        .collect::<String>()
+}
+
+// takes a value str and a slice of patterns
+// returns a collection of two things the value as items broken by all patterns and the pattern kind of the item
+pub fn iter_pats(value: &str, pats: &[&str]) {}
+
+pub enum Patterns {
+    StartsWith(&'static str),
+    EndsWith(&'static str),
+    StartsEndWith(&'static str),
+    Contains(&'static str),
+    Excludes(&'static str),
+    Equals(&'static str),
+}

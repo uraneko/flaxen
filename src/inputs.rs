@@ -37,13 +37,13 @@ pub fn event(bytes: &[u8], ws: &mut winsize) -> InputEvent {
     if ws.resized() {
         return InputEvent {
             time: SystemTime::now(),
-            event: UserInputEvent::WindowEvent(WindowEvent::WindowResized),
+            event: Interaction::WindowEvent(WindowEvent::WindowResized),
         };
     } else if bytes.len() % 6 == 0 && bytes[..3] == [27, 91, 77] {
         // mouse
         return InputEvent {
             time: SystemTime::now(),
-            event: UserInputEvent::MouseEvent(decode_mi(bytes).remove(0)),
+            event: Interaction::MouseEvent(decode_mi(bytes).remove(0)),
         };
     } else if bytes.len() < 9 {
         // BUG: 'لا' arabic char breaks the decode_ki function since it's 2 unicode chars combined char
@@ -53,13 +53,13 @@ pub fn event(bytes: &[u8], ws: &mut winsize) -> InputEvent {
         // keyboard
         return InputEvent {
             time: SystemTime::now(),
-            event: UserInputEvent::KbdEvent(decode_ki(bytes).unwrap()),
-            // event: UserInputEvent::KbdEvent(decode_ki_kai(bytes.to_vec()).remove(0).unwrap()),
+            event: Interaction::KbdEvent(decode_ki(bytes).unwrap()),
+            // event: Interaction::KbdEvent(decode_ki_kai(bytes.to_vec()).remove(0).unwrap()),
         };
     } else {
         // paste
         return InputEvent {
-            event: UserInputEvent::PasteEvent(PasteEvent(
+            event: Interaction::PasteEvent(PasteEvent(
                 decode_ki_kai(bytes.to_vec())
                     .into_iter()
                     .filter(|r| r.is_ok())
@@ -79,7 +79,7 @@ pub fn event(bytes: &[u8], ws: &mut winsize) -> InputEvent {
 }
 
 #[derive(Debug)]
-pub enum UserInputEvent {
+pub enum Interaction {
     WindowEvent(WindowEvent),
     KbdEvent(KbdEvent),
     MouseEvent(MouseEvent),
@@ -88,6 +88,6 @@ pub enum UserInputEvent {
 
 #[derive(Debug)]
 pub struct InputEvent {
-    pub event: UserInputEvent,
+    pub event: Interaction,
     pub time: SystemTime,
 }

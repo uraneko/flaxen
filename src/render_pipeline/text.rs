@@ -3,7 +3,7 @@ use std::io::{StdoutLock, Write};
 use std::str::Chars;
 
 use crate::components::*;
-use crate::space::{Border, Padding};
+use crate::space::{border::Border, padding::Padding};
 use crate::themes::Style;
 
 use super::spread_padding;
@@ -85,6 +85,7 @@ impl Text {
         writer.write(s.as_bytes());
     }
 
+    // returns the text component's width and height + the component borders and paddings
     pub(crate) fn decorate(&self) -> [u16; 2] {
         let [mut wextra, mut hextra] = match self.border {
             Border::None => [self.w, self.h],

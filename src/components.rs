@@ -1,6 +1,6 @@
 use crate::console::winsize::winsize;
 use crate::render_pipeline;
-use crate::space::{area_conflicts, between, border_fit, Border, Padding};
+use crate::space::{area_conflicts, between, border::Border, border_fit, padding::Padding};
 use crate::themes::Style;
 
 use std::collections::{HashMap, HashSet};
@@ -8,11 +8,13 @@ use std::io::Error;
 use std::io::StdoutLock;
 use std::io::Write;
 
+pub mod builders;
 pub mod container;
 pub mod term;
 pub mod text;
 
 // re-exports
+pub use builders::{ContainerMeta, InputMeta, NonEditMeta, TermMeta};
 pub use container::Container;
 pub use term::Term;
 pub use text::Text;
@@ -23,18 +25,40 @@ type TextTree = Vec<[u8; 3]>;
 
 type Styles = Vec<Style>;
 
-#[derive(Debug)]
+// #[derive(Debug)]
 pub(crate) enum Property {
     String(String),
+    Fn(Box<dyn Fn() -> Property>),
+    Range(std::ops::Range<u64>),
     Int(i64),
     UInt(u64),
     Float(f64),
     Bool(bool),
     Vec(Vec<Property>),
-    Term(Term),
-    Container(Container),
-    Text(Text),
+    // Term(Term),
+    // Container(Container),
+    // Text(Text),
     Map(HashMap<&'static str, Property>),
+}
+
+impl std::fmt::Debug for Property {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::String(s) => format!("{}", s),
+                Self::Fn(f) => format!("{}", std::any::type_name_of_val(f)),
+                Self::Range(r) => format!("{:?}", r),
+                Self::Int(i) => format!("{}", i),
+                Self::UInt(u) => format!("{}", u),
+                Self::Float(f) => format!("{}", f),
+                Self::Bool(b) => format!("{}", b),
+                Self::Vec(v) => format!("{:?}", v),
+                Self::Map(m) => format!("{:?}", m),
+            }
+        )
+    }
 }
 
 impl Property {
@@ -394,17 +418,30 @@ impl Property {
 /// the wrpper struct holding all the program term objects
 #[derive(Debug)]
 pub struct ComponentTree {
+    /// the term bufs collection
     terms: Vec<Term>,
-    // TODO: active should become a property
-    active: u8,
-    properties: HashMap<&'static str, Property>,
-    w: u16,
-    h: u16,
+    /// term that is now on focus
+    term: u8,
+    /// window size of the terminal window
+    ws: winsize,
+}
+
+#[derive(Debug)]
+pub enum IdError {
+    IdAlreadyTaken,
+    ParentIdNotFound,
+    NotAnInputId,
+    NotANonEditId,
 }
 
 /// errors for ComponentTree operations
 #[derive(Debug)]
 pub enum ComponentTreeError {
+    /// id errors
+    IdError(IdError),
+    /// space errors
+    SpaceError(SpaceError),
+    /// id errors
     /// Obscure error; something about some id somewhere went wrong
     BadID,
     ///
@@ -429,11 +466,9 @@ impl ComponentTree {
         let ws = winsize::from_ioctl();
 
         Self {
-            terms: vec![Term::new(0)],
-            active: 0,
-            w: ws.cols(),
-            h: ws.rows(),
-            properties: HashMap::new(),
+            terms: vec![Term::new(0, ws.cols(), ws.rows())],
+            term: 0,
+            ws,
         }
     }
 
@@ -459,13 +494,30 @@ impl ComponentTree {
     /// # Errors
     /// returns an error only if the new Term's id is already taken by another Term in this Tree
     ///
-    pub fn push_term(&mut self, term: Term) -> Result<(), (Term, ComponentTreeError)> {
+    pub fn push(&mut self, term: Term) -> Result<(), (Term, ComponentTreeError)> {
         if self.has_term(term.id) {
             return Err((term, ComponentTreeError::IDAlreadyExists));
         }
         self.terms.push(term);
 
         Ok(())
+    }
+
+    // removes the term with the given id  from this component tree and returns it
+    // returns None if such a term does not exist
+    pub fn pull(&mut self, id: u8) -> Option<Term> {
+        if self.has_term(id) {
+            return Some(
+                self.terms
+                    .remove(self.terms.iter().position(|t| t.id == id).unwrap()),
+            );
+        }
+
+        None
+    }
+
+    pub fn put(&mut self, term: Term, idx: usize) {
+        self.terms.insert(idx, term)
     }
 
     /// adds a new Term object to this tree
@@ -477,16 +529,17 @@ impl ComponentTree {
     pub fn term(&mut self, id: u8) -> Result<(), ComponentTreeError> {
         if self.has_term(id) {
             eprintln!("bad id");
-            return Err(ComponentTreeError::IDAlreadyExists);
+            return Err(ComponentTreeError::IdError(IdError::IdAlreadyTaken));
         }
-        self.terms.push(Term::new(id));
+        self.terms
+            .push(Term::new(id, self.ws.cols(), self.ws.rows()));
 
         Ok(())
     }
 
     /// returns the active Term object id
     pub fn active(&self) -> u8 {
-        self.active
+        self.term
     }
 
     /// changes the active Term of this tree
@@ -495,9 +548,9 @@ impl ComponentTree {
     /// # Errors
     ///
     /// returns an error if a Term with the provided id does not exist in this tree
-    pub fn make_active(&mut self, id: u8) -> Result<(), ComponentTreeError> {
+    pub fn focus(&mut self, id: u8) -> Result<(), ComponentTreeError> {
         if self.has_term(id) {
-            self.active = id;
+            self.term = id;
 
             return Ok(());
         }
@@ -510,9 +563,14 @@ impl ComponentTree {
     pub fn term_auto(&mut self) -> u8 {
         let id = self.assign_term_id();
 
-        self.terms.push(Term::new(id));
+        self.terms
+            .push(Term::new(id, self.ws.cols(), self.ws.rows()));
 
         id
+    }
+
+    pub fn term_from_meta(&mut self, meta: &mut TermMeta) {
+        self.terms.push(meta.term());
     }
 
     /// returns an optional immutable reference of the term with the provided id if it exists
@@ -546,10 +604,25 @@ impl ComponentTree {
 
         id
     }
+
+    // FIXME: this has to also resize all children
+    // then this gets called inside a render_resize method
+    fn resize(&mut self) {
+        let ws = winsize::from_ioctl();
+        let [cols, rows] = [ws.cols(), ws.rows()];
+
+        self.ws = ws;
+        self.terms.iter_mut().for_each(|t| {
+            t.w = cols;
+            t.h = rows;
+        });
+    }
 }
 
-enum SpaceError {
-    E1,
+#[derive(Debug)]
+pub enum SpaceError {
+    AreaOutOfBounds,
+    OriginOutOfBounds,
 }
 
 #[cfg(test)]
@@ -567,9 +640,9 @@ mod tree {
         assert_eq!(tree.terms.len(), 2);
 
         assert_eq!(tree.active(), 0);
-        tree.make_active(3);
+        tree.focus(3);
         assert_eq!(tree.active(), 0);
-        tree.make_active(7);
+        tree.focus(7);
         assert_eq!(tree.active(), 7);
     }
 
@@ -594,7 +667,7 @@ mod test_term {
 
     #[test]
     fn area() {
-        let mut term = Term::new(5);
+        let mut term = Term::new(5, 500, 500);
         let mut c1 = Container::default();
         c1.w = 24;
         c1.h = 32;
@@ -623,9 +696,11 @@ mod test_term {
         assert!(term.assign_valid_container_area(&c1).is_err());
     }
 
+    // FIXME: tests have been broken
+
     #[test]
     fn active() {
-        let mut term = Term::new(5);
+        let mut term = Term::new(5, 500, 500);
         let mut c = Container::default();
         c.x0 = 4;
         c.y0 = 5;
@@ -649,15 +724,15 @@ mod test_term {
 
         let res = term.focus(&id);
         assert!(res.is_ok());
-        assert_eq!(term.on_focus.unwrap(), id);
+        assert_eq!(term.focused.unwrap(), id);
         assert_eq!(term.focused().unwrap(), [11, 9]);
     }
 
-    use crate::space::{Area, Border, Padding, Pos};
+    use crate::space::{border::Border, padding::Padding, Area, Pos};
 
     #[test]
     fn cursor() {
-        let mut term = Term::new(5);
+        let mut term = Term::new(5, 500, 500);
         _ = term.container(
             &[0, 0],
             Pos::Value(56),
@@ -681,7 +756,7 @@ mod test_term {
 
     #[test]
     fn objects() {
-        let mut term = Term::new(0);
+        let mut term = Term::new(0, 600, 600);
         term.push_container(Container::default());
         term.container(
             &[0, 1],
@@ -710,7 +785,7 @@ mod test_term {
 
     #[test]
     fn objects1() {
-        let mut term = Term::new(0);
+        let mut term = Term::new(0, 500, 500);
         term.push_container(Container::default());
         term.container(
             &[0, 1],
@@ -737,7 +812,7 @@ mod test_term {
 
     #[test]
     fn objects_count() {
-        let mut term = Term::new(0);
+        let mut term = Term::new(0, 500, 500);
 
         term.container(
             &[0, 0],

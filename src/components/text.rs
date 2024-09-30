@@ -4,7 +4,7 @@ use std::io::Write;
 
 use crate::console::winsize::winsize;
 use crate::render_pipeline;
-use crate::space::{area_conflicts, between, border_fit, Border, Padding};
+use crate::space::{area_conflicts, between, border::Border, border_fit, padding::Padding};
 use crate::themes::Style;
 
 use super::Property;
@@ -22,10 +22,12 @@ pub struct Text {
     /// unique id
     pub id: [u8; 3],
     /// temporary value holder for use when scorrling history
+    // this should be part of properties
     pub temp: Vec<Option<char>>,
     /// the value inside this Text object
     pub value: Vec<Option<char>>,
     /// history cursor current value
+    // this field should be part of properties
     pub hicu: usize,
     /// width
     pub w: u16,
@@ -43,12 +45,11 @@ pub struct Text {
     pub ax0: u16,
     /// origin point y coordinate absolute value inside the Term
     pub ay0: u16,
-    /// permits registry
-    pub scopes: HashSet<&'static str>,
     /// border value
     pub border: Border,
     /// padding value
     pub padding: Padding,
+    // the following 2 fields have now become part of properties
     /// border style
     pub bstyle: String,
     /// value style
@@ -98,7 +99,7 @@ impl Text {
             },
             cx: 0,
             cy: 0,
-            scopes: HashSet::new(),
+
             layer: 0,
             vstyle: "".to_string(),
             bstyle: "".to_string(),
